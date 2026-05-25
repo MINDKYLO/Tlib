@@ -1,0 +1,90 @@
+{% extends 'base.html' %}
+{% block title %}เพิ่มอุปกรณ์{% endblock %}
+
+{% block content %}
+<div class="page-header d-flex align-items-center gap-2">
+  <a href="{{ url_for('equipment_list') }}" class="btn btn-sm btn-outline-secondary">
+    <i class="bi bi-arrow-left"></i>
+  </a>
+  <h4 class="mb-0 fw-bold"><i class="bi bi-plus-circle me-2 text-primary"></i>เพิ่มอุปกรณ์ใหม่</h4>
+</div>
+
+<div class="row justify-content-center">
+  <div class="col-lg-7">
+    <div class="card shadow-sm">
+      <div class="card-body p-4">
+        <form method="POST" action="{{ url_for('add_equipment') }}"
+              enctype="multipart/form-data">
+          <div class="row g-3">
+            <div class="col-12">
+              <label class="form-label fw-semibold">ชื่ออุปกรณ์ <span class="text-danger">*</span></label>
+              <input type="text" name="name" class="form-control"
+                     placeholder="เช่น MacBook Pro 14 inch" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">หมวดหมู่ <span class="text-danger">*</span></label>
+              <select name="category" class="form-select" required>
+                <option value="">-- เลือกหมวดหมู่ --</option>
+                {% for cat in ['Notebook','Monitor','Mobile','Tablet','Camera','Printer','Network','Storage','Peripheral','Other'] %}
+                <option value="{{ cat }}">{{ cat }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Serial Number</label>
+              <input type="text" name="serial_number" class="form-control" placeholder="เช่น SN-2024-001">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">ยี่ห้อ (Brand)</label>
+              <input type="text" name="brand" class="form-control" placeholder="เช่น Apple, Dell, HP">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">รุ่น (Model)</label>
+              <input type="text" name="model" class="form-control" placeholder="เช่น MacBook Pro M2">
+            </div>
+            <div class="col-12">
+              <label class="form-label fw-semibold">รายละเอียด</label>
+              <textarea name="description" class="form-control" rows="2"
+                        placeholder="สเปค, สี, ความจุ..."></textarea>
+            </div>
+
+            <!-- IMAGE UPLOAD -->
+            <div class="col-12">
+              <label class="form-label fw-semibold">
+                <i class="bi bi-image me-1 text-primary"></i>รูปภาพอุปกรณ์
+                <span class="text-muted fw-normal">(ไม่บังคับ)</span>
+              </label>
+              <input type="file" name="image" id="imageInput" class="form-control"
+                     accept="image/*" onchange="previewImage(this)">
+              <div id="imagePreview" class="mt-2 d-none">
+                <img id="previewImg" src="#" class="img-thumbnail" style="max-height:150px">
+              </div>
+            </div>
+
+            <div class="col-12 d-flex gap-2 pt-2">
+              <button type="submit" class="btn btn-primary flex-grow-1">
+                <i class="bi bi-plus-lg me-1"></i>เพิ่มอุปกรณ์
+              </button>
+              <a href="{{ url_for('equipment_list') }}" class="btn btn-outline-secondary">ยกเลิก</a>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function previewImage(input) {
+  const preview = document.getElementById('imagePreview');
+  const img     = document.getElementById('previewImg');
+  if (input.files && input.files[0]) {
+    const reader = new FileReader();
+    reader.onload = e => { img.src = e.target.result; preview.classList.remove('d-none'); };
+    reader.readAsDataURL(input.files[0]);
+  }
+}
+</script>
+{% endblock %}

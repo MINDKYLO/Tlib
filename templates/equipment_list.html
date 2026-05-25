@@ -1,0 +1,155 @@
+{% extends 'base.html' %}
+{% block title %}อุปกรณ์ทั้งหมด{% endblock %}
+
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+  <div>
+    <h4 class="mb-0 fw-bold"><i class="bi bi-laptop me-2 text-primary"></i>อุปกรณ์ทั้งหมด</h4>
+    <small class="text-muted">{{ equipment|length }} รายการ</small>
+  </div>
+  {% if session.role == 'admin' %}
+  <a href="{{ url_for('add_equipment') }}" class="btn btn-primary">
+    <i class="bi bi-plus-lg me-1"></i>เพิ่มอุปกรณ์
+  </a>
+  {% endif %}
+</div>
+
+<!-- FILTERS -->
+<div class="card shadow-sm mb-3">
+  <div class="card-body py-2">
+    <form method="GET" class="row g-2 align-items-end">
+      <div class="col-12 col-md-5">
+        <div class="input-group input-group-sm">
+          <span class="input-group-text"><i class="bi bi-search"></i></span>
+          <input type="text" name="search" class="form-control" placeholder="ค้นหาชื่อ, Serial, ยี่ห้อ..."
+                 value="{{ search }}">
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <select name="category" class="form-select form-select-sm">
+          <option value="">หมวดหมู่ทั้งหมด</option>
+          {% for cat in categories %}
+          <option value="{{ cat.category }}" {% if selected_category == cat.category %}selected{% endif %}>
+            {{ cat.category }}
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-6 col-md-2">
+        <select name="status" class="form-select form-select-sm">
+          <option value="">สถานะทั้งหมด</option>
+          <option value="available" {% if selected_status == 'available' %}selected{% endif %}>ว่าง</option>
+          <option value="borrowed"  {% if selected_status == 'borrowed'  %}selected{% endif %}>ถูกยืม</option>
+        </select>
+      </div>
+      <div class="col-12 col-md-2 d-flex gap-1">
+        <button type="submit" class="btn btn-primary btn-sm flex-grow-1">ค้นหา</button>
+        <a href="{{ url_for('equipment_list') }}" class="btn btn-outline-secondary btn-sm">
+          <i class="bi bi-x-lg"></i>
+        </a>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- EQUIPMENT GRID -->
+{% if equipment %}
+<div class="row g-3">
+  {% for eq in equipment %}
+  <div class="col-12 col-sm-6 col-xl-4">
+    <div class="equipment-card {% if eq.status == 'borrowed' %}borrowed{% endif %}">
+      <div class="eq-card-header">
+        <div class="eq-icon category-{{ eq.category|lower|replace(' ','') }}">
+          {% set icons = {'notebook':'laptop','monitor':'display','mobile':'phone','camera':'camera','tablet':'tablet','printer':'printer'} %}
+          <i class="bi bi-{{ icons.get(eq.category|lower, 'box') }}"></i>
+        </div>
+        <div class="flex-grow-1 min-width-0">
+          <div class="fw-semibold text-truncate">{{ eq.name }}</div>
+          <div class="text-muted small">{{ eq.brand }} {{ eq.model }}</div>
+        </div>
+        {% if eq.status == 'available' %}
+          <span class="badge badge-available">ว่าง</span>
+        {% else %}
+          <span class="badge badge-borrowed">ถูกยืม</span>
+        {% endif %}
+      </div>
+
+      <div class="eq-card-body">
+        <div class="eq-info-row">
+          <span class="text-muted small"><i class="bi bi-tag me-1"></i>{{ eq.category }}</span>
+          <span class="text-muted small"><i class="bi bi-upc me-1"></i>{{ eq.serial_number or '-' }}</span>
+        </div>
+        {% if eq.description %}
+        <p class="small text-muted mb-0 text-truncate">{{ eq.description }}</p>
+        {% endif %}
+      </div>
+
+      <div class="eq-card-footer">
+        <a href="{{ url_for('equipment_detail', eid=eq.id) }}" class="btn btn-sm btn-outline-primary flex-grow-1">
+          <i class="bi bi-eye me-1"></i>รายละเอียด
+        </a>
+        {% if eq.status == 'available' %}
+        <button class="btn btn-sm btn-primary" data-bs-toggle="modal"
+                data-bs-target="#borrowModal{{ eq.id }}">
+          <i class="bi bi-arrow-right-circle me-1"></i>ยืม
+        </button>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Borrow Modal -->
+  {% if eq.status == 'available' %}
+  <div class="modal fade" id="borrowModal{{ eq.id }}" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title"><i class="bi bi-arrow-right-circle me-2 text-primary"></i>ยืมอุปกรณ์</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <form method="POST" action="{{ url_for('borrow', eid=eq.id) }}">
+          <div class="modal-body">
+            <div class="borrow-summary mb-3">
+              <div class="eq-icon category-{{ eq.category|lower|replace(' ','') }} me-3">
+                <i class="bi bi-{{ icons.get(eq.category|lower, 'box') }}"></i>
+              </div>
+              <div>
+                <div class="fw-bold">{{ eq.name }}</div>
+                <div class="text-muted small">{{ eq.brand }} {{ eq.model }}</div>
+                <div class="text-muted small">Serial: {{ eq.serial_number }}</div>
+              </div>
+            </div>
+            <div class="mb-3">
+              <label class="form-label fw-semibold small">วันที่ต้องคืน <span class="text-muted">(ไม่บังคับ)</span></label>
+              <input type="date" name="due_date" class="form-control form-control-sm">
+            </div>
+            <div class="mb-2">
+              <label class="form-label fw-semibold small">หมายเหตุ</label>
+              <textarea name="notes" class="form-control form-control-sm" rows="2"
+                        placeholder="เช่น เพื่อใช้งานในโปรเจกต์ X..."></textarea>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">ยกเลิก</button>
+            <button type="submit" class="btn btn-primary">
+              <i class="bi bi-check-lg me-1"></i>ยืนยันการยืม
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+  {% endfor %}
+</div>
+{% else %}
+<div class="empty-state py-5">
+  <i class="bi bi-search fs-1 text-muted d-block mb-3"></i>
+  <h5 class="text-muted">ไม่พบอุปกรณ์</h5>
+  <p class="text-muted">ลองเปลี่ยนคำค้นหาหรือตัวกรอง</p>
+  <a href="{{ url_for('equipment_list') }}" class="btn btn-outline-primary">
+    <i class="bi bi-arrow-clockwise me-1"></i>รีเซ็ตการค้นหา
+  </a>
+</div>
+{% endif %}
+{% endblock %}

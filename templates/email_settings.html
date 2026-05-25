@@ -1,0 +1,141 @@
+{% extends 'base.html' %}
+{% block title %}ตั้งค่า Email{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h4 class="mb-0 fw-bold"><i class="bi bi-envelope-gear me-2 text-primary"></i>ตั้งค่า Email</h4>
+  <small class="text-muted">ตั้งค่า SMTP สำหรับส่ง Email แจ้งเตือน</small>
+</div>
+
+<div class="row g-3">
+  <!-- SMTP SETTINGS -->
+  <div class="col-lg-6">
+    <div class="card shadow-sm">
+      <div class="card-header fw-semibold">
+        <i class="bi bi-gear me-2 text-primary"></i>ตั้งค่า SMTP
+      </div>
+      <div class="card-body">
+        <form method="POST" action="{{ url_for('email_settings_page') }}">
+          <input type="hidden" name="action" value="save">
+
+          <div class="mb-3">
+            <div class="form-check form-switch">
+              <input class="form-check-input" type="checkbox" name="enabled" id="enabledSwitch"
+                     {% if cfg.enabled %}checked{% endif %}>
+              <label class="form-check-label fw-semibold" for="enabledSwitch">
+                เปิดใช้งานการส่ง Email
+              </label>
+            </div>
+          </div>
+
+          <div class="row g-2 mb-3">
+            <div class="col-8">
+              <label class="form-label fw-semibold small">SMTP Host</label>
+              <input type="text" name="smtp_host" class="form-control form-control-sm"
+                     value="{{ cfg.smtp_host or '' }}" placeholder="smtp.gmail.com">
+            </div>
+            <div class="col-4">
+              <label class="form-label fw-semibold small">Port</label>
+              <input type="number" name="smtp_port" class="form-control form-control-sm"
+                     value="{{ cfg.smtp_port or 587 }}">
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-semibold small">Username / Email</label>
+            <input type="text" name="smtp_user" class="form-control form-control-sm"
+                   value="{{ cfg.smtp_user or '' }}" placeholder="your@gmail.com">
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-semibold small">Password / App Password</label>
+            <input type="password" name="smtp_password" class="form-control form-control-sm"
+                   value="{{ cfg.smtp_password or '' }}" placeholder="••••••••••••">
+            <div class="form-text">
+              Gmail: ใช้ <a href="https://myaccount.google.com/apppasswords" target="_blank">App Password</a>
+              แทนรหัสผ่านปกติ
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-semibold small">From Address (ชื่อผู้ส่ง)</label>
+            <input type="text" name="smtp_from" class="form-control form-control-sm"
+                   value="{{ cfg.smtp_from or '' }}" placeholder="IT Borrow &lt;noreply@company.com&gt;">
+          </div>
+
+          <button type="submit" class="btn btn-primary w-100">
+            <i class="bi bi-save me-1"></i>บันทึกการตั้งค่า
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT PANEL -->
+  <div class="col-lg-6">
+    <!-- Test Email -->
+    <div class="card shadow-sm mb-3">
+      <div class="card-header fw-semibold">
+        <i class="bi bi-send me-2 text-success"></i>ทดสอบการส่ง Email
+      </div>
+      <div class="card-body">
+        <form method="POST" action="{{ url_for('email_settings_page') }}">
+          <input type="hidden" name="action" value="test">
+          <div class="mb-3">
+            <label class="form-label fw-semibold small">ส่งไปที่ Email</label>
+            <div class="input-group input-group-sm">
+              <span class="input-group-text"><i class="bi bi-envelope"></i></span>
+              <input type="email" name="test_email" class="form-control"
+                     placeholder="test@example.com" required>
+            </div>
+          </div>
+          <button type="submit" class="btn btn-success btn-sm w-100"
+                  {% if not cfg.enabled %}disabled{% endif %}>
+            <i class="bi bi-send me-1"></i>ส่ง Email ทดสอบ
+          </button>
+          {% if not cfg.enabled %}
+          <div class="text-muted small mt-1 text-center">เปิดใช้งานก่อนทดสอบ</div>
+          {% endif %}
+        </form>
+      </div>
+    </div>
+
+    <!-- Send Overdue Reminders -->
+    <div class="card shadow-sm mb-3">
+      <div class="card-header fw-semibold">
+        <i class="bi bi-exclamation-triangle me-2 text-danger"></i>ส่ง Email แจ้งเตือนเกินกำหนด
+      </div>
+      <div class="card-body">
+        <p class="text-muted small mb-3">
+          ส่ง Email แจ้งเตือนไปยังผู้ที่ยืมอุปกรณ์เกินกำหนดคืนทุกราย
+          (เฉพาะผู้ที่มีอีเมลในระบบ)
+        </p>
+        <form method="POST" action="{{ url_for('email_settings_page') }}"
+              onsubmit="return confirm('ยืนยันการส่ง Email แจ้งเตือนเกินกำหนดทั้งหมด?')">
+          <input type="hidden" name="action" value="send_overdue">
+          <button type="submit" class="btn btn-danger btn-sm w-100"
+                  {% if not cfg.enabled %}disabled{% endif %}>
+            <i class="bi bi-envelope-exclamation me-1"></i>ส่งแจ้งเตือนเกินกำหนดทั้งหมด
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Setup Guide -->
+    <div class="card shadow-sm border-info">
+      <div class="card-header fw-semibold text-info bg-info bg-opacity-10">
+        <i class="bi bi-info-circle me-2"></i>คู่มือตั้งค่า Gmail
+      </div>
+      <div class="card-body">
+        <ol class="small text-muted mb-0 ps-3">
+          <li class="mb-1">เปิด Gmail → บัญชี Google → ความปลอดภัย</li>
+          <li class="mb-1">เปิดใช้ <strong>การยืนยันตัวตน 2 ขั้นตอน</strong></li>
+          <li class="mb-1">ไปที่ <strong>App Passwords</strong> → สร้าง Password ใหม่</li>
+          <li class="mb-1">ใช้ Password ที่ได้ในช่อง Password ด้านซ้าย</li>
+          <li>SMTP Host: <code>smtp.gmail.com</code> Port: <code>587</code></li>
+        </ol>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

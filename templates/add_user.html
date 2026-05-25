@@ -1,0 +1,62 @@
+{% extends 'base.html' %}
+{% block title %}เพิ่มผู้ใช้{% endblock %}
+
+{% block content %}
+<div class="page-header d-flex align-items-center gap-2">
+  <a href="{{ url_for('user_list') }}" class="btn btn-sm btn-outline-secondary">
+    <i class="bi bi-arrow-left"></i>
+  </a>
+  <h4 class="mb-0 fw-bold"><i class="bi bi-person-plus me-2 text-primary"></i>เพิ่มผู้ใช้ใหม่</h4>
+</div>
+
+<div class="row justify-content-center">
+  <div class="col-lg-6">
+    <div class="card shadow-sm">
+      <div class="card-body p-4">
+        <form method="POST" action="{{ url_for('add_user') }}">
+          <div class="row g-3">
+            <div class="col-12">
+              <label class="form-label fw-semibold">ชื่อ-นามสกุล <span class="text-danger">*</span></label>
+              <input type="text" name="name" class="form-control" placeholder="เช่น สมชาย ใจดี" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">ชื่อผู้ใช้ <span class="text-danger">*</span></label>
+              <input type="text" name="username" class="form-control" placeholder="username" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">รหัสผ่าน <span class="text-danger">*</span></label>
+              <input type="password" name="password" class="form-control" required minlength="6">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">แผนก</label>
+              <input type="text" name="department" class="form-control" placeholder="เช่น ฝ่าย IT">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">บทบาท</label>
+              <select name="role" class="form-select">
+                <option value="user">User</option>
+                <option value="admin">Admin</option>
+              </select>
+            </div>
+            <div class="col-12">
+              <label class="form-label fw-semibold">
+                อีเมล <span class="text-muted fw-normal">(สำหรับรับการแจ้งเตือน)</span>
+              </label>
+              <div class="input-group">
+                <span class="input-group-text"><i class="bi bi-envelope"></i></span>
+                <input type="email" name="email" class="form-control" placeholder="user@company.com">
+              </div>
+            </div>
+            <div class="col-12 d-flex gap-2 pt-2">
+              <button type="submit" class="btn btn-primary flex-grow-1">
+                <i class="bi bi-person-plus me-1"></i>เพิ่มผู้ใช้
+              </button>
+              <a href="{{ url_for('user_list') }}" class="btn btn-outline-secondary">ยกเลิก</a>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

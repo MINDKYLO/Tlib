@@ -1,0 +1,155 @@
+{% extends 'base.html' %}
+{% block title %}สแกน QR Code{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h4 class="mb-0 fw-bold"><i class="bi bi-qr-code-scan me-2 text-primary"></i>สแกน QR Code</h4>
+  <small class="text-muted">สแกน QR Code ของอุปกรณ์เพื่อดูข้อมูล</small>
+</div>
+
+<div class="row justify-content-center">
+  <div class="col-lg-6">
+    <!-- CAMERA SCANNER -->
+    <div class="card shadow-sm mb-3">
+      <div class="card-header fw-semibold">
+        <i class="bi bi-camera me-2 text-primary"></i>สแกนผ่านกล้อง
+      </div>
+      <div class="card-body text-center">
+        <div id="scannerContainer" class="scanner-box mb-3">
+          <video id="qrVideo" class="w-100 rounded" playsinline></video>
+          <canvas id="qrCanvas" style="display:none;"></canvas>
+          <div class="scanner-overlay">
+            <div class="scanner-frame"></div>
+          </div>
+          <div id="scannerPlaceholder" class="scanner-placeholder">
+            <i class="bi bi-qr-code fs-1 text-muted d-block mb-2"></i>
+            <p class="text-muted">กดปุ่มเพื่อเปิดกล้อง</p>
+          </div>
+        </div>
+        <div class="d-flex gap-2 justify-content-center">
+          <button id="startBtn" class="btn btn-primary" onclick="startScanner()">
+            <i class="bi bi-camera me-1"></i>เปิดกล้อง
+          </button>
+          <button id="stopBtn" class="btn btn-outline-danger d-none" onclick="stopScanner()">
+            <i class="bi bi-stop-circle me-1"></i>หยุด
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- RESULT -->
+    <div id="resultCard" class="card shadow-sm mb-3 d-none">
+      <div class="card-header fw-semibold bg-success text-white">
+        <i class="bi bi-check-circle me-2"></i>ผลการสแกน
+      </div>
+      <div class="card-body">
+        <pre id="qrResult" class="mb-0 small text-break"></pre>
+      </div>
+    </div>
+
+    <!-- MANUAL SEARCH -->
+    <div class="card shadow-sm">
+      <div class="card-header fw-semibold">
+        <i class="bi bi-search me-2 text-primary"></i>ค้นหาด้วย Serial Number
+      </div>
+      <div class="card-body">
+        <p class="text-muted small mb-3">ค้นหาอุปกรณ์โดยกรอก Serial Number แทนการสแกน QR</p>
+        <div class="input-group">
+          <input type="text" id="serialSearch" class="form-control"
+                 placeholder="กรอก Serial Number เช่น NB-001">
+          <button class="btn btn-primary" onclick="searchBySerial()">
+            <i class="bi bi-search"></i>
+          </button>
+        </div>
+        <div id="searchResult" class="mt-3"></div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+<script>
+let videoStream = null;
+let scanning = false;
+
+async function startScanner() {
+  try {
+    const video = document.getElementById('qrVideo');
+    const placeholder = document.getElementById('scannerPlaceholder');
+    videoStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'environment' }
+    });
+    video.srcObject = videoStream;
+    video.play();
+    placeholder.style.display = 'none';
+    document.getElementById('startBtn').classList.add('d-none');
+    document.getElementById('stopBtn').classList.remove('d-none');
+    scanning = true;
+    requestAnimationFrame(scanFrame);
+  } catch (err) {
+    alert('ไม่สามารถเปิดกล้องได้: ' + err.message);
+  }
+}
+
+function stopScanner() {
+  scanning = false;
+  if (videoStream) {
+    videoStream.getTracks().forEach(t => t.stop());
+    videoStream = null;
+  }
+  document.getElementById('qrVideo').srcObject = null;
+  document.getElementById('scannerPlaceholder').style.display = 'flex';
+  document.getElementById('startBtn').classList.remove('d-none');
+  document.getElementById('stopBtn').classList.add('d-none');
+}
+
+function scanFrame() {
+  if (!scanning) return;
+  const video  = document.getElementById('qrVideo');
+  const canvas = document.getElementById('qrCanvas');
+  if (video.readyState === video.HAVE_ENOUGH_DATA) {
+    canvas.width  = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const code = jsQR(imageData.data, imageData.width, imageData.height);
+    if (code) {
+      showResult(code.data);
+      stopScanner();
+      return;
+    }
+  }
+  requestAnimationFrame(scanFrame);
+}
+
+function showResult(data) {
+  const card = document.getElementById('resultCard');
+  const pre  = document.getElementById('qrResult');
+  pre.textContent = data;
+  card.classList.remove('d-none');
+
+  // Try to extract ID and redirect
+  const match = data.match(/ID:(\d+)/);
+  if (match) {
+    setTimeout(() => {
+      window.location.href = `/equipment/${match[1]}`;
+    }, 1500);
+  }
+}
+
+function searchBySerial() {
+  const serial = document.getElementById('serialSearch').value.trim();
+  if (!serial) return;
+  const div = document.getElementById('searchResult');
+  div.innerHTML = '<div class="text-center"><div class="spinner-border spinner-border-sm text-primary"></div></div>';
+
+  fetch(`/equipment?search=${encodeURIComponent(serial)}`)
+    .then(() => {
+      window.location.href = `/equipment?search=${encodeURIComponent(serial)}`;
+    });
+}
+</script>
+{% endblock %}

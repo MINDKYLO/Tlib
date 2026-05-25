@@ -1,0 +1,159 @@
+{% extends 'base.html' %}
+{% block title %}โปรไฟล์{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h4 class="mb-0 fw-bold"><i class="bi bi-person-circle me-2 text-primary"></i>โปรไฟล์ของฉัน</h4>
+</div>
+
+<div class="row g-3">
+  <!-- LEFT: Profile Info + Change Password -->
+  <div class="col-lg-5">
+
+    <!-- User Info -->
+    <div class="card shadow-sm mb-3">
+      <div class="card-header fw-semibold">
+        <i class="bi bi-person me-2 text-primary"></i>ข้อมูลส่วนตัว
+      </div>
+      <div class="card-body">
+        <div class="text-center mb-3">
+          <div class="avatar-lg mx-auto mb-2">{{ user.name[0] }}</div>
+          <div class="fw-bold">{{ user.name }}</div>
+          <div class="text-muted small">@{{ user.username }}</div>
+          <span class="badge {% if user.role == 'admin' %}bg-danger{% else %}bg-secondary{% endif %} mt-1">
+            {{ 'Admin' if user.role == 'admin' else 'User' }}
+          </span>
+        </div>
+
+        <form method="POST" action="{{ url_for('profile') }}">
+          <input type="hidden" name="action" value="update_info">
+          <div class="mb-3">
+            <label class="form-label fw-semibold small">ชื่อ-นามสกุล</label>
+            <input type="text" name="name" class="form-control form-control-sm"
+                   value="{{ user.name }}" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold small">อีเมล</label>
+            <div class="input-group input-group-sm">
+              <span class="input-group-text"><i class="bi bi-envelope"></i></span>
+              <input type="email" name="email" class="form-control"
+                     value="{{ user.email or '' }}" placeholder="example@company.com">
+            </div>
+            <div class="form-text">ใช้รับการแจ้งเตือนการยืม-คืน</div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold small">แผนก</label>
+            <input type="text" name="department" class="form-control form-control-sm"
+                   value="{{ user.department or '' }}" placeholder="เช่น ฝ่าย IT">
+          </div>
+          <button type="submit" class="btn btn-primary btn-sm w-100">
+            <i class="bi bi-check-lg me-1"></i>บันทึกข้อมูล
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Change Password -->
+    <div class="card shadow-sm">
+      <div class="card-header fw-semibold">
+        <i class="bi bi-shield-lock me-2 text-warning"></i>เปลี่ยนรหัสผ่าน
+      </div>
+      <div class="card-body">
+        <form method="POST" action="{{ url_for('profile') }}">
+          <input type="hidden" name="action" value="change_password">
+          <div class="mb-3">
+            <label class="form-label fw-semibold small">รหัสผ่านเดิม</label>
+            <div class="input-group input-group-sm">
+              <span class="input-group-text"><i class="bi bi-lock"></i></span>
+              <input type="password" name="old_password" class="form-control" required>
+            </div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold small">รหัสผ่านใหม่</label>
+            <div class="input-group input-group-sm">
+              <span class="input-group-text"><i class="bi bi-lock-fill"></i></span>
+              <input type="password" name="new_password" class="form-control"
+                     id="newPw" required minlength="6">
+            </div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold small">ยืนยันรหัสผ่านใหม่</label>
+            <div class="input-group input-group-sm">
+              <span class="input-group-text"><i class="bi bi-lock-fill"></i></span>
+              <input type="password" name="confirm_password" class="form-control"
+                     id="confirmPw" required oninput="checkMatch()">
+            </div>
+            <div id="pwMatchMsg" class="form-text"></div>
+          </div>
+          <button type="submit" class="btn btn-warning btn-sm w-100">
+            <i class="bi bi-key me-1"></i>เปลี่ยนรหัสผ่าน
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT: Borrow History -->
+  <div class="col-lg-7">
+    <div class="card shadow-sm">
+      <div class="card-header fw-semibold">
+        <i class="bi bi-clock-history me-2 text-primary"></i>ประวัติการยืมของฉัน
+      </div>
+      <div class="card-body p-0">
+        {% if my_borrows %}
+        <div class="table-responsive">
+          <table class="table table-hover table-sm mb-0">
+            <thead class="table-light">
+              <tr><th>อุปกรณ์</th><th>วันที่ยืม</th><th>ครบกำหนด</th><th>สถานะ</th></tr>
+            </thead>
+            <tbody>
+              {% for b in my_borrows %}
+              <tr>
+                <td>
+                  <a href="{{ url_for('equipment_detail', eid=b.equipment_id) }}"
+                     class="text-decoration-none fw-semibold small">{{ b.eq_name }}</a>
+                  <div class="text-muted" style="font-size:0.7rem">{{ b.category }}</div>
+                </td>
+                <td class="small">{{ b.borrow_date[:10] }}</td>
+                <td class="small">{{ b.due_date or '-' }}</td>
+                <td>
+                  {% if b.status == 'borrowed' %}
+                    <span class="badge badge-borrowed">ยืมอยู่</span>
+                  {% else %}
+                    <span class="badge badge-returned">คืนแล้ว</span>
+                  {% endif %}
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <div class="empty-state py-4">
+          <i class="bi bi-inbox fs-2 text-muted d-block mb-2"></i>
+          <p class="text-muted">ยังไม่มีประวัติการยืม</p>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function checkMatch() {
+  const np  = document.getElementById('newPw').value;
+  const cp  = document.getElementById('confirmPw').value;
+  const msg = document.getElementById('pwMatchMsg');
+  if (!cp) { msg.textContent = ''; return; }
+  if (np === cp) {
+    msg.textContent = '✓ รหัสผ่านตรงกัน';
+    msg.style.color = '#22c55e';
+  } else {
+    msg.textContent = '✗ รหัสผ่านไม่ตรงกัน';
+    msg.style.color = '#dc2626';
+  }
+}
+</script>
+{% endblock %}

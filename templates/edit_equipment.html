@@ -1,0 +1,96 @@
+{% extends 'base.html' %}
+{% block title %}แก้ไขอุปกรณ์{% endblock %}
+
+{% block content %}
+<div class="page-header d-flex align-items-center gap-2">
+  <a href="{{ url_for('equipment_detail', eid=eq.id) }}" class="btn btn-sm btn-outline-secondary">
+    <i class="bi bi-arrow-left"></i>
+  </a>
+  <div>
+    <h4 class="mb-0 fw-bold"><i class="bi bi-pencil me-2 text-primary"></i>แก้ไขอุปกรณ์</h4>
+    <small class="text-muted">{{ eq.name }}</small>
+  </div>
+</div>
+
+<div class="row justify-content-center">
+  <div class="col-lg-7">
+    <div class="card shadow-sm">
+      <div class="card-body p-4">
+        <form method="POST" action="{{ url_for('edit_equipment', eid=eq.id) }}"
+              enctype="multipart/form-data">
+          <div class="row g-3">
+            <div class="col-12">
+              <label class="form-label fw-semibold">ชื่ออุปกรณ์ <span class="text-danger">*</span></label>
+              <input type="text" name="name" class="form-control" value="{{ eq.name }}" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">หมวดหมู่ <span class="text-danger">*</span></label>
+              <select name="category" class="form-select" required>
+                {% for cat in ['Notebook','Monitor','Mobile','Tablet','Camera','Printer','Network','Storage','Peripheral','Other'] %}
+                <option value="{{ cat }}" {% if eq.category == cat %}selected{% endif %}>{{ cat }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">Serial Number</label>
+              <input type="text" name="serial_number" class="form-control" value="{{ eq.serial_number or '' }}">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">ยี่ห้อ (Brand)</label>
+              <input type="text" name="brand" class="form-control" value="{{ eq.brand or '' }}">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">รุ่น (Model)</label>
+              <input type="text" name="model" class="form-control" value="{{ eq.model or '' }}">
+            </div>
+            <div class="col-12">
+              <label class="form-label fw-semibold">รายละเอียด</label>
+              <textarea name="description" class="form-control" rows="2">{{ eq.description or '' }}</textarea>
+            </div>
+
+            <!-- IMAGE -->
+            <div class="col-12">
+              <label class="form-label fw-semibold">
+                <i class="bi bi-image me-1 text-primary"></i>รูปภาพอุปกรณ์
+              </label>
+              {% if eq.image %}
+              <div class="mb-2">
+                <img src="{{ url_for('static', filename='uploads/' + eq.image) }}"
+                     class="img-thumbnail" style="max-height:120px">
+                <div class="text-muted small mt-1">รูปปัจจุบัน — อัพโหลดใหม่เพื่อเปลี่ยน</div>
+              </div>
+              {% endif %}
+              <input type="file" name="image" class="form-control"
+                     accept="image/*" onchange="previewImage(this)">
+              <div id="imagePreview" class="mt-2 d-none">
+                <img id="previewImg" src="#" class="img-thumbnail" style="max-height:120px">
+              </div>
+            </div>
+
+            <div class="col-12 d-flex gap-2 pt-2">
+              <button type="submit" class="btn btn-primary flex-grow-1">
+                <i class="bi bi-check-lg me-1"></i>บันทึกการแก้ไข
+              </button>
+              <a href="{{ url_for('equipment_detail', eid=eq.id) }}" class="btn btn-outline-secondary">ยกเลิก</a>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function previewImage(input) {
+  const preview = document.getElementById('imagePreview');
+  const img     = document.getElementById('previewImg');
+  if (input.files && input.files[0]) {
+    const reader = new FileReader();
+    reader.onload = e => { img.src = e.target.result; preview.classList.remove('d-none'); };
+    reader.readAsDataURL(input.files[0]);
+  }
+}
+</script>
+{% endblock %}

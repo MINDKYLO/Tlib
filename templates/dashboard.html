@@ -1,0 +1,330 @@
+{% extends 'base.html' %}
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h4 class="mb-0 fw-bold"><i class="bi bi-speedometer2 me-2 text-primary"></i>Dashboard</h4>
+  <small class="text-muted">ภาพรวมระบบยืม-คืนอุปกรณ์ IT</small>
+</div>
+
+<!-- OVERDUE ALERT -->
+{% if overdue %}
+<div class="alert alert-danger border-0 shadow-sm mb-3 p-0 overflow-hidden">
+  <div class="d-flex align-items-center px-3 py-2"
+       style="background:#dc2626;color:#fff;cursor:pointer"
+       data-bs-toggle="collapse" data-bs-target="#overdueList">
+    <i class="bi bi-exclamation-triangle-fill me-2 fs-5"></i>
+    <span class="fw-bold">อุปกรณ์เกินกำหนดคืน {{ overdue|length }} รายการ</span>
+    <i class="bi bi-chevron-down ms-auto"></i>
+  </div>
+  <div class="collapse show" id="overdueList">
+    <div class="px-3 pt-2 pb-1">
+      {% for b in overdue %}
+      <div class="d-flex align-items-center gap-2 py-1 border-bottom border-danger-subtle">
+        <i class="bi bi-exclamation-circle text-danger"></i>
+        <div class="flex-grow-1">
+          <span class="fw-semibold small">{{ b.eq_name }}</span>
+          <span class="text-muted small ms-2">ผู้ยืม: {{ b.user_name }}</span>
+        </div>
+        <span class="badge bg-danger">ครบ {{ b.due_date }}</span>
+        {% if b.user_id == session.user_id or session.role == 'admin' %}
+        <form method="POST" action="{{ url_for('return_equipment', bid=b.id) }}"
+              onsubmit="return confirm('ยืนยันการคืน?')">
+          <button class="btn btn-xs btn-outline-danger">คืน</button>
+        </form>
+        {% endif %}
+      </div>
+      {% endfor %}
+      {% if session.role == 'admin' %}
+      <div class="pt-2 pb-1">
+        <a href="{{ url_for('email_settings_page') }}" class="btn btn-sm btn-danger">
+          <i class="bi bi-envelope me-1"></i>ส่ง Email แจ้งเตือนทั้งหมด
+        </a>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<!-- STAT CARDS -->
+<div class="row g-3 mb-3">
+  <div class="col-6 col-lg-4">
+    <div class="stat-card stat-total">
+      <div class="stat-icon"><i class="bi bi-laptop"></i></div>
+      <div class="stat-body">
+        <div class="stat-num">{{ total }}</div>
+        <div class="stat-label">อุปกรณ์ทั้งหมด</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-lg-4">
+    <div class="stat-card stat-available">
+      <div class="stat-icon"><i class="bi bi-check-circle"></i></div>
+      <div class="stat-body">
+        <div class="stat-num">{{ available }}</div>
+        <div class="stat-label">พร้อมใช้งาน</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-12 col-lg-4">
+    <div class="stat-card stat-borrowed">
+      <div class="stat-icon"><i class="bi bi-arrow-right-circle"></i></div>
+      <div class="stat-body">
+        <div class="stat-num">{{ borrowed }}</div>
+        <div class="stat-label">กำลังถูกยืม</div>
+        {% if overdue %}
+        <div class="text-danger fw-bold" style="font-size:0.72rem">
+          <i class="bi bi-exclamation-triangle"></i> เกินกำหนด {{ overdue|length }}
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MY BORROWS + RECENT ACTIVITY -->
+<div class="row g-3 mb-3">
+  <div class="col-lg-5">
+    <div class="card shadow-sm h-100">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span class="fw-semibold"><i class="bi bi-person-check me-2 text-primary"></i>อุปกรณ์ที่ฉันยืมอยู่</span>
+        <a href="{{ url_for('equipment_list') }}" class="btn btn-sm btn-outline-primary">
+          <i class="bi bi-plus-lg me-1"></i>ยืมเพิ่ม
+        </a>
+      </div>
+      <div class="card-body p-0">
+        {% if my_borrows %}
+          {% for b in my_borrows %}
+          {% set is_overdue = b.due_date and b.due_date < today|default('') %}
+          <div class="borrow-item {% if is_overdue %}borrow-overdue{% endif %}">
+            <div class="eq-icon category-{{ b.category|lower|replace(' ','') }}">
+              {% set icons = {'notebook':'laptop','monitor':'display','mobile':'phone','camera':'camera','tablet':'tablet','printer':'printer'} %}
+              <i class="bi bi-{{ icons.get(b.category|lower, 'box') }}"></i>
+            </div>
+            <div class="flex-grow-1 min-width-0">
+              <div class="fw-semibold small text-truncate">{{ b.eq_name }}</div>
+              <div class="text-muted" style="font-size:0.75rem">
+                ยืม {{ b.borrow_date[:10] }}
+                {% if b.due_date %}
+                  &nbsp;|&nbsp;
+                  <span class="{% if is_overdue %}text-danger fw-bold{% else %}text-warning{% endif %}">
+                    ครบ {{ b.due_date }}
+                  </span>
+                {% endif %}
+              </div>
+            </div>
+            <form method="POST" action="{{ url_for('return_equipment', bid=b.id) }}"
+                  onsubmit="return confirm('ยืนยันการคืน {{ b.eq_name }}?')">
+              <button class="btn btn-sm btn-success">
+                <i class="bi bi-arrow-return-left"></i>
+                <span class="d-none d-sm-inline ms-1">คืน</span>
+              </button>
+            </form>
+          </div>
+          {% endfor %}
+        {% else %}
+          <div class="empty-state py-4">
+            <i class="bi bi-inbox fs-2 text-muted d-block mb-2"></i>
+            <p class="text-muted mb-3">ไม่มีอุปกรณ์ที่ยืมอยู่</p>
+            <a href="{{ url_for('equipment_list') }}" class="btn btn-primary btn-sm">
+              <i class="bi bi-search me-1"></i>ค้นหาอุปกรณ์
+            </a>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-7">
+    <div class="card shadow-sm h-100">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span class="fw-semibold"><i class="bi bi-activity me-2 text-success"></i>กิจกรรมล่าสุด</span>
+        <a href="{{ url_for('history') }}" class="btn btn-sm btn-outline-secondary">
+          ดูทั้งหมด <i class="bi bi-chevron-right ms-1"></i>
+        </a>
+      </div>
+      <div class="card-body p-0">
+        {% if recent %}
+        <div class="table-responsive">
+          <table class="table table-hover table-sm mb-0 activity-table">
+            <thead class="table-light">
+              <tr><th>อุปกรณ์</th><th>ผู้ยืม</th><th>สถานะ</th><th>วันที่</th></tr>
+            </thead>
+            <tbody>
+              {% for b in recent %}
+              <tr>
+                <td>
+                  <a href="{{ url_for('equipment_detail', eid=b.equipment_id) }}"
+                     class="text-decoration-none fw-semibold small">{{ b.eq_name }}</a>
+                  <div class="text-muted" style="font-size:0.7rem">{{ b.category }}</div>
+                </td>
+                <td class="small">{{ b.user_name }}</td>
+                <td>
+                  {% if b.status == 'borrowed' %}
+                    <span class="badge badge-borrowed">ยืมอยู่</span>
+                  {% else %}
+                    <span class="badge badge-returned">คืนแล้ว</span>
+                  {% endif %}
+                </td>
+                <td class="small text-muted">{{ b.borrow_date[:10] }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+          <div class="empty-state py-4">
+            <i class="bi bi-clock-history fs-2 text-muted d-block mb-2"></i>
+            <p class="text-muted">ยังไม่มีกิจกรรม</p>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- CHARTS -->
+<div class="row g-3 mb-3">
+  <div class="col-lg-7">
+    <div class="card shadow-sm">
+      <div class="card-header fw-semibold">
+        <i class="bi bi-bar-chart me-2 text-primary"></i>สถิติการยืมรายเดือน (6 เดือนล่าสุด)
+      </div>
+      <div class="card-body">
+        <canvas id="borrowChart" height="120"></canvas>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-5">
+    <div class="card shadow-sm">
+      <div class="card-header fw-semibold">
+        <i class="bi bi-pie-chart me-2 text-success"></i>อุปกรณ์แยกตามหมวดหมู่
+      </div>
+      <div class="card-body d-flex justify-content-center">
+        <canvas id="categoryChart" style="max-height:220px;max-width:220px"></canvas>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- CATEGORY STATS TABLE -->
+{% if cat_stats %}
+<div class="card shadow-sm mb-3">
+  <div class="card-header fw-semibold">
+    <i class="bi bi-table me-2 text-warning"></i>สรุปอุปกรณ์ตามหมวดหมู่
+  </div>
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-sm mb-0">
+        <thead class="table-light">
+          <tr><th>หมวดหมู่</th><th class="text-center">ทั้งหมด</th>
+              <th class="text-center">ว่าง</th><th class="text-center">ถูกยืม</th>
+              <th>สัดส่วน</th></tr>
+        </thead>
+        <tbody>
+          {% for c in cat_stats %}
+          <tr>
+            <td class="fw-semibold small">{{ c.category }}</td>
+            <td class="text-center small">{{ c.total }}</td>
+            <td class="text-center"><span class="badge badge-available">{{ c.avail }}</span></td>
+            <td class="text-center"><span class="badge badge-borrowed">{{ c.lent }}</span></td>
+            <td style="min-width:120px">
+              <div class="progress" style="height:6px">
+                <div class="progress-bar bg-warning"
+                     style="width:{{ (c.lent / c.total * 100)|int }}%"></div>
+              </div>
+              <div class="text-muted" style="font-size:0.68rem">
+                {{ (c.lent / c.total * 100)|int }}% ถูกยืม
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<!-- QUICK ACTIONS -->
+<div class="row g-2">
+  <div class="col-6 col-md-3">
+    <a href="{{ url_for('equipment_list') }}" class="quick-action-card text-decoration-none">
+      <i class="bi bi-search fs-4 text-primary"></i><span>ค้นหาอุปกรณ์</span>
+    </a>
+  </div>
+  <div class="col-6 col-md-3">
+    <a href="{{ url_for('scan_qr') }}" class="quick-action-card text-decoration-none">
+      <i class="bi bi-qr-code-scan fs-4 text-success"></i><span>สแกน QR Code</span>
+    </a>
+  </div>
+  <div class="col-6 col-md-3">
+    <a href="{{ url_for('history') }}?fmt=excel" class="quick-action-card text-decoration-none"
+       onclick="window.location='{{ url_for('export_history') }}?fmt=excel'; return false;">
+      <i class="bi bi-file-earmark-excel fs-4 text-success"></i><span>Export Excel</span>
+    </a>
+  </div>
+  {% if session.role == 'admin' %}
+  <div class="col-6 col-md-3">
+    <a href="{{ url_for('add_equipment') }}" class="quick-action-card text-decoration-none">
+      <i class="bi bi-plus-circle fs-4 text-danger"></i><span>เพิ่มอุปกรณ์</span>
+    </a>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+const today = new Date().toISOString().slice(0, 10);
+
+// Bar chart: monthly borrows
+const borrowCtx = document.getElementById('borrowChart').getContext('2d');
+new Chart(borrowCtx, {
+  type: 'bar',
+  data: {
+    labels: {{ chart_labels | safe }},
+    datasets: [{
+      label: 'จำนวนการยืม',
+      data: {{ chart_borrows | safe }},
+      backgroundColor: 'rgba(37,99,235,0.7)',
+      borderColor: '#2563eb',
+      borderWidth: 1,
+      borderRadius: 6
+    }]
+  },
+  options: {
+    responsive: true,
+    plugins: { legend: { display: false } },
+    scales: {
+      y: { beginAtZero: true, ticks: { stepSize: 1 } }
+    }
+  }
+});
+
+// Doughnut chart: category
+{% if cat_stats %}
+const catCtx = document.getElementById('categoryChart').getContext('2d');
+new Chart(catCtx, {
+  type: 'doughnut',
+  data: {
+    labels: [{% for c in cat_stats %}'{{ c.category }}'{% if not loop.last %},{% endif %}{% endfor %}],
+    datasets: [{
+      data: [{% for c in cat_stats %}{{ c.total }}{% if not loop.last %},{% endif %}{% endfor %}],
+      backgroundColor: ['#3b82f6','#8b5cf6','#22c55e','#f97316','#f43f5e','#0ea5e9','#10b981','#f59e0b'],
+      borderWidth: 2,
+      borderColor: '#fff'
+    }]
+  },
+  options: {
+    responsive: true,
+    plugins: {
+      legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } }
+    }
+  }
+});
+{% endif %}
+</script>
+{% endblock %}

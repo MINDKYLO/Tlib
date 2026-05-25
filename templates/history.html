@@ -1,0 +1,116 @@
+{% extends 'base.html' %}
+{% block title %}ประวัติการยืม{% endblock %}
+
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+  <div>
+    <h4 class="mb-0 fw-bold"><i class="bi bi-clock-history me-2 text-primary"></i>ประวัติการยืม-คืน</h4>
+    <small class="text-muted">{{ borrows|length }} รายการ</small>
+  </div>
+  <div class="d-flex gap-2">
+    <a href="{{ url_for('export_history') }}?fmt=csv"
+       class="btn btn-sm btn-outline-success">
+      <i class="bi bi-filetype-csv me-1"></i>Export CSV
+    </a>
+    <a href="{{ url_for('export_history') }}?fmt=excel"
+       class="btn btn-sm btn-success">
+      <i class="bi bi-file-earmark-excel me-1"></i>Export Excel
+    </a>
+  </div>
+</div>
+
+<!-- SUMMARY -->
+<div class="d-flex gap-2 mb-3 flex-wrap">
+  {% set borrowed_count  = borrows | selectattr('status', 'eq', 'borrowed')  | list | length %}
+  {% set returned_count  = borrows | selectattr('status', 'eq', 'returned')  | list | length %}
+  {% set overdue_count   = borrows | selectattr('status', 'eq', 'borrowed')
+                                   | selectattr('due_date')
+                                   | list | length %}
+  <span class="badge bg-warning text-dark fs-6 py-2 px-3">
+    <i class="bi bi-arrow-right-circle me-1"></i>ยืมอยู่ {{ borrowed_count }}
+  </span>
+  <span class="badge bg-success fs-6 py-2 px-3">
+    <i class="bi bi-check-circle me-1"></i>คืนแล้ว {{ returned_count }}
+  </span>
+</div>
+
+<div class="card shadow-sm">
+  <div class="card-body p-0">
+    {% if borrows %}
+    <div class="table-responsive">
+      <table class="table table-hover mb-0" id="historyTable">
+        <thead class="table-light">
+          <tr>
+            <th>#</th>
+            <th>อุปกรณ์</th>
+            <th>ผู้ยืม</th>
+            <th>วันที่ยืม</th>
+            <th>ครบกำหนด</th>
+            <th>วันที่คืน</th>
+            <th>สถานะ</th>
+            {% if session.role == 'admin' %}<th>จัดการ</th>{% endif %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for b in borrows %}
+          {% set is_overdue = b.status == 'borrowed' and b.due_date and b.due_date < today %}
+          <tr class="{% if is_overdue %}row-overdue{% endif %}">
+            <td class="text-muted small">{{ loop.index }}</td>
+            <td>
+              <a href="{{ url_for('equipment_detail', eid=b.equipment_id) }}"
+                 class="text-decoration-none fw-semibold small">{{ b.eq_name }}</a>
+              <div class="text-muted" style="font-size:0.7rem">{{ b.category }}</div>
+            </td>
+            <td>
+              <div class="small fw-semibold">{{ b.user_name }}</div>
+              {% if b.department %}
+              <div class="text-muted" style="font-size:0.7rem">{{ b.department }}</div>
+              {% endif %}
+            </td>
+            <td class="small">{{ b.borrow_date[:10] }}</td>
+            <td class="small">
+              {% if b.due_date %}
+                <span class="{% if is_overdue %}text-danger fw-bold{% elif b.status == 'borrowed' %}text-warning fw-semibold{% else %}text-muted{% endif %}">
+                  {% if is_overdue %}<i class="bi bi-exclamation-circle me-1"></i>{% endif %}
+                  {{ b.due_date }}
+                </span>
+              {% else %}
+                <span class="text-muted">-</span>
+              {% endif %}
+            </td>
+            <td class="small">{{ b.return_date[:10] if b.return_date else '-' }}</td>
+            <td>
+              {% if is_overdue %}
+                <span class="badge bg-danger">เกินกำหนด</span>
+              {% elif b.status == 'borrowed' %}
+                <span class="badge badge-borrowed">ยืมอยู่</span>
+              {% else %}
+                <span class="badge badge-returned">คืนแล้ว</span>
+              {% endif %}
+            </td>
+            {% if session.role == 'admin' %}
+            <td>
+              {% if b.status == 'borrowed' %}
+              <form method="POST" action="{{ url_for('return_equipment', bid=b.id) }}"
+                    onsubmit="return confirm('ยืนยันการคืน?')">
+                <button class="btn btn-xs btn-success">
+                  <i class="bi bi-arrow-return-left"></i> คืน
+                </button>
+              </form>
+              {% endif %}
+            </td>
+            {% endif %}
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="empty-state py-5">
+      <i class="bi bi-clock-history fs-1 text-muted d-block mb-3"></i>
+      <h5 class="text-muted">ยังไม่มีประวัติการยืม</h5>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

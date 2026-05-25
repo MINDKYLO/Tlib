@@ -1,0 +1,67 @@
+{% extends 'base.html' %}
+{% block title %}จัดการผู้ใช้{% endblock %}
+
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center">
+  <div>
+    <h4 class="mb-0 fw-bold"><i class="bi bi-people me-2 text-primary"></i>จัดการผู้ใช้</h4>
+    <small class="text-muted">{{ users|length }} บัญชี</small>
+  </div>
+  <a href="{{ url_for('add_user') }}" class="btn btn-primary">
+    <i class="bi bi-person-plus me-1"></i>เพิ่มผู้ใช้
+  </a>
+</div>
+
+<div class="card shadow-sm">
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>ผู้ใช้</th>
+            <th>ชื่อผู้ใช้</th>
+            <th>แผนก</th>
+            <th>บทบาท</th>
+            <th>วันที่สร้าง</th>
+            <th>จัดการ</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for u in users %}
+          <tr>
+            <td>
+              <div class="d-flex align-items-center gap-2">
+                <div class="avatar-sm">{{ u.name[0] }}</div>
+                <span class="fw-semibold">{{ u.name }}</span>
+              </div>
+            </td>
+            <td class="fw-mono small text-muted">{{ u.username }}</td>
+            <td class="small">{{ u.department or '-' }}</td>
+            <td>
+              {% if u.role == 'admin' %}
+                <span class="badge bg-danger">Admin</span>
+              {% else %}
+                <span class="badge bg-secondary">User</span>
+              {% endif %}
+            </td>
+            <td class="small text-muted">{{ u.created_at[:10] }}</td>
+            <td>
+              {% if u.id != session.user_id %}
+              <form method="POST" action="{{ url_for('delete_user', uid=u.id) }}"
+                    onsubmit="return confirm('ลบผู้ใช้ {{ u.name }}?')">
+                <button class="btn btn-xs btn-outline-danger">
+                  <i class="bi bi-trash"></i>
+                </button>
+              </form>
+              {% else %}
+              <span class="text-muted small">บัญชีของคุณ</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}
