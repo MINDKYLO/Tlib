@@ -1,5 +1,5 @@
 from flask import (Flask, render_template, request, redirect, url_for,
-                   session, flash, jsonify, Response)
+                   session, flash, jsonify, Response, send_from_directory)
 import sqlite3, qrcode, io, base64, csv, os, json, smtplib, hashlib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
@@ -12,10 +12,12 @@ from openpyxl.utils import get_column_letter
 
 app = Flask(__name__)
 app.secret_key = 'it-equipment-secret-key-2024'
-DATABASE = 'equipment.db'
-UPLOAD_FOLDER = os.path.join('static', 'uploads')
 ALLOWED = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
+# Vercel has a read-only filesystem; only /tmp is writable
+_ON_VERCEL = os.environ.get('VERCEL') or not os.access('.', os.W_OK)
+DATABASE     = '/tmp/equipment.db'          if _ON_VERCEL else 'equipment.db'
+UPLOAD_FOLDER = '/tmp/uploads'              if _ON_VERCEL else os.path.join('static', 'uploads')
 
 
 # ── DB HELPERS ─────────────────────────────────────────────────────────────────
@@ -27,6 +29,7 @@ def get_db():
 
 
 def init_db():
+    os.makedirs(UPLOAD_FOLDER, exist_ok=True)
     conn = get_db()
     c = conn.cursor()
 
@@ -778,6 +781,16 @@ def api_qr(eid):
     return jsonify({'qr': generate_qr(qr_data), 'equipment': dict(eq)})
 
 
+# ── SERVE UPLOADS ──────────────────────────────────────────────────────────────
+# Works for both local (static/uploads) and Vercel (/tmp/uploads)
+
+@app.route('/uploads/<path:filename>')
+def uploaded_file(filename):
+    return send_from_directory(UPLOAD_FOLDER, filename)
+
+
+# Initialize DB on import so Vercel serverless functions work without __main__
+init_db()
+
 if __name__ == '__main__':
-    init_db()
     app.run(debug=True, host='0.0.0.0', port=5000)
