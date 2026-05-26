@@ -1,6 +1,6 @@
 from flask import (Flask, render_template, request, redirect, url_for,
                    session, flash, jsonify, Response, send_from_directory)
-import sqlite3, qrcode, io, base64, csv, os, json, smtplib, hashlib
+import sqlite3, qrcode, io, base64, csv, os, smtplib, hashlib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from datetime import datetime, date
@@ -284,32 +284,10 @@ def dashboard():
         ORDER BY b.borrow_date DESC
     ''', (session['user_id'],)).fetchall()
 
-    # Chart: monthly borrows last 6 months
-    monthly = conn.execute('''
-        SELECT strftime('%Y-%m', borrow_date) as month, COUNT(*) as cnt
-        FROM borrows
-        WHERE borrow_date >= date('now', '-6 months')
-        GROUP BY month ORDER BY month
-    ''').fetchall()
-    chart_labels  = [r['month'] for r in monthly]
-    chart_borrows = [r['cnt']   for r in monthly]
-
-    # Chart: category stats
-    cat_stats = conn.execute('''
-        SELECT category,
-               COUNT(*) as total,
-               SUM(CASE WHEN status='available' THEN 1 ELSE 0 END) as avail,
-               SUM(CASE WHEN status='borrowed'  THEN 1 ELSE 0 END) as lent
-        FROM equipment GROUP BY category
-    ''').fetchall()
-
     conn.close()
     return render_template('dashboard.html',
                            total=total, available=available, borrowed=borrowed,
-                           overdue=overdue, recent=recent, my_borrows=my_borrows,
-                           chart_labels=json.dumps(chart_labels),
-                           chart_borrows=json.dumps(chart_borrows),
-                           cat_stats=cat_stats)
+                           overdue=overdue, recent=recent, my_borrows=my_borrows)
 
 
 # ── EQUIPMENT ──────────────────────────────────────────────────────────────────
