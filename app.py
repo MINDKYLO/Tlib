@@ -308,7 +308,7 @@ def dashboard():
         FROM borrows b
         JOIN equipment e ON b.equipment_id=e.id
         JOIN users u ON b.user_id=u.id
-        WHERE b.status='borrowed' AND b.due_date IS NOT NULL AND b.due_date < CURRENT_DATE
+        WHERE b.status='borrowed' AND b.due_date IS NOT NULL AND b.due_date <= CURRENT_DATE
         ORDER BY b.due_date ASC
     ''')
 
@@ -813,7 +813,7 @@ def email_settings_page():
                 FROM borrows b
                 JOIN equipment e ON b.equipment_id=e.id
                 JOIN users u ON b.user_id=u.id
-                WHERE b.status='borrowed' AND b.due_date IS NOT NULL AND b.due_date < CURRENT_DATE
+                WHERE b.status='borrowed' AND b.due_date IS NOT NULL AND b.due_date <= CURRENT_DATE
             ''')
             sent = sum(1 for b in overdue
                        if email_overdue(b['user_email'], b['user_name'], b['eq_name'], b['due_date']))
@@ -860,7 +860,7 @@ def overdue_list():
         FROM borrows b
         JOIN equipment e ON b.equipment_id=e.id
         JOIN users u ON b.user_id=u.id
-        WHERE b.status='borrowed' AND b.due_date IS NOT NULL AND b.due_date < CURRENT_DATE
+        WHERE b.status='borrowed' AND b.due_date IS NOT NULL AND b.due_date <= CURRENT_DATE
         ORDER BY b.due_date ASC
     ''')
     conn.close()
