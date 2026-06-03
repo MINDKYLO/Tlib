@@ -674,6 +674,32 @@ def add_user():
     return render_template('add_user.html')
 
 
+@app.route('/users/<int:uid>/edit', methods=['GET', 'POST'])
+@admin_required
+def edit_user(uid):
+    conn = get_db()
+    user = db_fetchone(conn, 'SELECT * FROM users WHERE id=%s', (uid,))
+    if not user:
+        conn.close()
+        flash('ไม่พบผู้ใช้', 'danger')
+        return redirect(url_for('user_list'))
+    if request.method == 'POST':
+        name       = request.form['name']
+        department = request.form['department']
+        email      = request.form.get('email', '')
+        phone      = request.form.get('phone', '')
+        role       = request.form['role']
+        db_execute(conn, '''UPDATE users SET name=%s, department=%s, email=%s, phone=%s, role=%s
+                            WHERE id=%s''',
+                   (name, department, email, phone, role, uid))
+        conn.commit()
+        conn.close()
+        flash(f'อัพเดทข้อมูล {name} สำเร็จ', 'success')
+        return redirect(url_for('user_list'))
+    conn.close()
+    return render_template('edit_user.html', user=user)
+
+
 @app.route('/users/<int:uid>/delete', methods=['POST'])
 @admin_required
 def delete_user(uid):
