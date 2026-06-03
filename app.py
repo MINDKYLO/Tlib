@@ -1,6 +1,7 @@
 from flask import (Flask, render_template, request, redirect, url_for,
                    session, flash, jsonify, Response, send_from_directory)
-import sqlite3, qrcode, io, base64, csv, os, smtplib, hashlib
+import psycopg2, psycopg2.extras
+import qrcode, io, base64, csv, os, smtplib, hashlib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from datetime import datetime, date
@@ -14,103 +15,133 @@ app = Flask(__name__)
 app.secret_key = 'it-equipment-secret-key-2024'
 ALLOWED = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
 
-# Vercel has a read-only filesystem; only /tmp is writable
-_ON_VERCEL = os.environ.get('VERCEL') or not os.access('.', os.W_OK)
-DATABASE     = '/tmp/equipment.db'          if _ON_VERCEL else 'equipment.db'
-UPLOAD_FOLDER = '/tmp/uploads'              if _ON_VERCEL else os.path.join('static', 'uploads')
+_ON_VERCEL    = os.environ.get('VERCEL') or not os.access('.', os.W_OK)
+UPLOAD_FOLDER = '/tmp/uploads' if _ON_VERCEL else os.path.join('static', 'uploads')
+
+DATABASE_URL = os.environ.get('DATABASE_URL', 'postgresql://localhost/itborrow')
+# Railway/Heroku use "postgres://" prefix; psycopg2 requires "postgresql://"
+if DATABASE_URL.startswith('postgres://'):
+    DATABASE_URL = DATABASE_URL.replace('postgres://', 'postgresql://', 1)
 
 
 # ── DB HELPERS ─────────────────────────────────────────────────────────────────
 
 def get_db():
-    conn = sqlite3.connect(DATABASE)
-    conn.row_factory = sqlite3.Row
-    return conn
+    return psycopg2.connect(DATABASE_URL,
+                            cursor_factory=psycopg2.extras.RealDictCursor)
+
+
+def _to_str(v):
+    if isinstance(v, datetime):
+        return v.strftime('%Y-%m-%d %H:%M:%S')
+    if isinstance(v, date):
+        return v.isoformat()
+    return v
+
+
+def row_to_dict(row):
+    if row is None:
+        return None
+    return {k: _to_str(v) for k, v in dict(row).items()}
+
+
+def rows_to_dicts(rows):
+    return [row_to_dict(r) for r in rows]
+
+
+def db_fetchone(conn, sql, params=()):
+    cur = conn.cursor()
+    cur.execute(sql, params)
+    return row_to_dict(cur.fetchone())
+
+
+def db_fetchall(conn, sql, params=()):
+    cur = conn.cursor()
+    cur.execute(sql, params)
+    return rows_to_dicts(cur.fetchall())
+
+
+def db_execute(conn, sql, params=()):
+    cur = conn.cursor()
+    cur.execute(sql, params)
+    return cur
 
 
 def init_db():
     os.makedirs(UPLOAD_FOLDER, exist_ok=True)
     conn = get_db()
-    c = conn.cursor()
+    cur  = conn.cursor()
 
-    c.execute('''CREATE TABLE IF NOT EXISTS users (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        username TEXT UNIQUE NOT NULL,
-        password TEXT NOT NULL,
-        name TEXT NOT NULL,
-        role TEXT DEFAULT 'user',
+    cur.execute('''CREATE TABLE IF NOT EXISTS users (
+        id         SERIAL PRIMARY KEY,
+        username   TEXT UNIQUE NOT NULL,
+        password   TEXT NOT NULL,
+        name       TEXT NOT NULL,
+        role       TEXT DEFAULT 'user',
         department TEXT,
-        email TEXT,
+        email      TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )''')
 
-    c.execute('''CREATE TABLE IF NOT EXISTS equipment (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT NOT NULL,
-        category TEXT NOT NULL,
+    cur.execute('''CREATE TABLE IF NOT EXISTS equipment (
+        id            SERIAL PRIMARY KEY,
+        name          TEXT NOT NULL,
+        category      TEXT NOT NULL,
         serial_number TEXT UNIQUE,
-        brand TEXT,
-        model TEXT,
-        status TEXT DEFAULT 'available',
-        description TEXT,
-        image TEXT,
-        added_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        brand         TEXT,
+        model         TEXT,
+        status        TEXT DEFAULT 'available',
+        description   TEXT,
+        image         TEXT,
+        added_date    TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )''')
 
-    c.execute('''CREATE TABLE IF NOT EXISTS borrows (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        equipment_id INTEGER NOT NULL,
-        user_id INTEGER NOT NULL,
-        borrow_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        due_date DATE,
-        return_date TIMESTAMP,
-        status TEXT DEFAULT 'borrowed',
-        notes TEXT,
-        FOREIGN KEY (equipment_id) REFERENCES equipment(id),
-        FOREIGN KEY (user_id) REFERENCES users(id)
+    cur.execute('''CREATE TABLE IF NOT EXISTS borrows (
+        id           SERIAL PRIMARY KEY,
+        equipment_id INTEGER NOT NULL REFERENCES equipment(id),
+        user_id      INTEGER NOT NULL REFERENCES users(id),
+        borrow_date  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        due_date     DATE,
+        return_date  TIMESTAMP,
+        status       TEXT DEFAULT 'borrowed',
+        notes        TEXT
     )''')
 
-    c.execute('''CREATE TABLE IF NOT EXISTS email_settings (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        smtp_host TEXT DEFAULT '',
-        smtp_port INTEGER DEFAULT 587,
-        smtp_user TEXT DEFAULT '',
+    cur.execute('''CREATE TABLE IF NOT EXISTS email_settings (
+        id            SERIAL PRIMARY KEY,
+        smtp_host     TEXT DEFAULT '',
+        smtp_port     INTEGER DEFAULT 587,
+        smtp_user     TEXT DEFAULT '',
         smtp_password TEXT DEFAULT '',
-        smtp_from TEXT DEFAULT '',
-        enabled INTEGER DEFAULT 0
+        smtp_from     TEXT DEFAULT '',
+        enabled       SMALLINT DEFAULT 0
     )''')
 
-    for sql in ['ALTER TABLE users ADD COLUMN email TEXT',
-                'ALTER TABLE equipment ADD COLUMN image TEXT']:
-        try:
-            c.execute(sql)
-        except Exception:
-            pass
+    cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS email TEXT")
+    cur.execute("ALTER TABLE equipment ADD COLUMN IF NOT EXISTS image TEXT")
 
-    if not c.execute('SELECT COUNT(*) FROM email_settings').fetchone()[0]:
-        c.execute('INSERT INTO email_settings (smtp_host, smtp_port) VALUES ("", 587)')
+    cur.execute('SELECT COUNT(*) as c FROM email_settings')
+    if not cur.fetchone()['c']:
+        cur.execute("INSERT INTO email_settings (smtp_host, smtp_port) VALUES ('', 587)")
 
     admin_pw = hashlib.sha256('admin123'.encode()).hexdigest()
-    try:
-        c.execute("INSERT INTO users (username, password, name, role, department) VALUES (?,?,?,?,?)",
-                  ('admin', admin_pw, 'ผู้ดูแลระบบ', 'admin', 'ฝ่าย IT'))
-    except Exception:
-        pass
+    cur.execute('''INSERT INTO users (username, password, name, role, department)
+                   VALUES (%s, %s, %s, %s, %s)
+                   ON CONFLICT (username) DO NOTHING''',
+                ('admin', admin_pw, 'ผู้ดูแลระบบ', 'admin', 'ฝ่าย IT'))
 
     sample = [
-        ('MacBook Pro 14"',  'Notebook', 'NB-001', 'Apple',  'MacBook Pro M2', 'มี 16GB RAM / 512GB SSD'),
-        ('Dell Monitor 27"', 'Monitor',  'MN-001', 'Dell',   'U2722D 4K',      'จอ 4K IPS 27 นิ้ว'),
-        ('iPhone 14 Pro',    'Mobile',   'MB-001', 'Apple',  'iPhone 14 Pro',  '256GB Deep Purple'),
-        ('Canon EOS R5',     'Camera',   'CM-001', 'Canon',  'EOS R5',         'กล้อง Mirrorless 45MP'),
-        ('iPad Pro 12.9"',   'Tablet',   'TB-001', 'Apple',  'iPad Pro M2',    '256GB WiFi+Cellular'),
-        ('HP LaserJet Pro',  'Printer',  'PR-001', 'HP',     'LaserJet M404n', 'เครื่องพิมพ์ขาวดำ'),
+        ('MacBook Pro 14"',  'Notebook', 'NB-001', 'Apple', 'MacBook Pro M2', 'มี 16GB RAM / 512GB SSD'),
+        ('Dell Monitor 27"', 'Monitor',  'MN-001', 'Dell',  'U2722D 4K',      'จอ 4K IPS 27 นิ้ว'),
+        ('iPhone 14 Pro',    'Mobile',   'MB-001', 'Apple', 'iPhone 14 Pro',  '256GB Deep Purple'),
+        ('Canon EOS R5',     'Camera',   'CM-001', 'Canon', 'EOS R5',         'กล้อง Mirrorless 45MP'),
+        ('iPad Pro 12.9"',   'Tablet',   'TB-001', 'Apple', 'iPad Pro M2',    '256GB WiFi+Cellular'),
+        ('HP LaserJet Pro',  'Printer',  'PR-001', 'HP',    'LaserJet M404n', 'เครื่องพิมพ์ขาวดำ'),
     ]
     for s in sample:
-        try:
-            c.execute('''INSERT INTO equipment (name, category, serial_number, brand, model, description)
-                         VALUES (?,?,?,?,?,?)''', s)
-        except Exception:
-            pass
+        cur.execute('''INSERT INTO equipment (name, category, serial_number, brand, model, description)
+                       VALUES (%s, %s, %s, %s, %s, %s)
+                       ON CONFLICT (serial_number) DO NOTHING''', s)
 
     conn.commit()
     conn.close()
@@ -143,9 +174,9 @@ def admin_required(f):
 
 def get_email_cfg():
     conn = get_db()
-    row = conn.execute('SELECT * FROM email_settings LIMIT 1').fetchone()
+    row  = db_fetchone(conn, 'SELECT * FROM email_settings LIMIT 1')
     conn.close()
-    return dict(row) if row else {}
+    return row or {}
 
 
 def send_email(to_email, subject, html_body):
@@ -175,12 +206,12 @@ def email_borrow(user_email, user_name, eq_name, due_date):
     html = f"""
     <div style="font-family:sans-serif;max-width:500px;margin:auto;padding:20px">
       <div style="background:#2563eb;color:#fff;padding:16px 20px;border-radius:8px 8px 0 0">
-        <h2 style="margin:0">✅ ยืมอุปกรณ์สำเร็จ</h2>
+        <h2 style="margin:0">&#x2705; ยืมอุปกรณ์สำเร็จ</h2>
       </div>
       <div style="border:1px solid #e2e8f0;border-top:none;padding:20px;border-radius:0 0 8px 8px">
         <p>สวัสดีคุณ <strong>{user_name}</strong></p>
         <p>คุณได้ทำการยืม <strong>{eq_name}</strong> เรียบร้อยแล้ว</p>
-        {'<p>📅 กำหนดคืน: <strong>' + str(due_date) + '</strong></p>' if due_date else ''}
+        {'<p>&#x1F4C5; กำหนดคืน: <strong>' + str(due_date) + '</strong></p>' if due_date else ''}
         <p style="color:#64748b;font-size:0.85em">หากมีข้อสงสัยกรุณาติดต่อฝ่าย IT</p>
       </div>
     </div>"""
@@ -191,16 +222,16 @@ def email_overdue(user_email, user_name, eq_name, due_date):
     html = f"""
     <div style="font-family:sans-serif;max-width:500px;margin:auto;padding:20px">
       <div style="background:#dc2626;color:#fff;padding:16px 20px;border-radius:8px 8px 0 0">
-        <h2 style="margin:0">⚠️ อุปกรณ์เกินกำหนดคืน</h2>
+        <h2 style="margin:0">&#x26A0;&#xFE0F; อุปกรณ์เกินกำหนดคืน</h2>
       </div>
       <div style="border:1px solid #fecaca;border-top:none;padding:20px;border-radius:0 0 8px 8px;background:#fff5f5">
         <p>สวัสดีคุณ <strong>{user_name}</strong></p>
         <p>อุปกรณ์ <strong>{eq_name}</strong> ที่คุณยืมไว้เกินกำหนดคืนแล้ว</p>
-        <p>📅 กำหนดคืนเดิม: <strong style="color:#dc2626">{due_date}</strong></p>
+        <p>&#x1F4C5; กำหนดคืนเดิม: <strong style="color:#dc2626">{due_date}</strong></p>
         <p>กรุณาคืนอุปกรณ์โดยเร็วที่สุด</p>
       </div>
     </div>"""
-    return send_email(user_email, f'[IT Borrow] ⚠️ เกินกำหนดคืน: {eq_name}', html)
+    return send_email(user_email, f'[IT Borrow] &#x26A0;&#xFE0F; เกินกำหนดคืน: {eq_name}', html)
 
 
 # ── QR ─────────────────────────────────────────────────────────────────────────
@@ -229,8 +260,8 @@ def login():
         username = request.form['username']
         password = hashlib.sha256(request.form['password'].encode()).hexdigest()
         conn = get_db()
-        user = conn.execute('SELECT * FROM users WHERE username=? AND password=?',
-                            (username, password)).fetchone()
+        user = db_fetchone(conn, 'SELECT * FROM users WHERE username=%s AND password=%s',
+                           (username, password))
         conn.close()
         if user:
             session.update({'user_id': user['id'], 'username': user['username'],
@@ -255,39 +286,39 @@ def dashboard():
     conn  = get_db()
     today = date.today().isoformat()
 
-    total     = conn.execute("SELECT COUNT(*) as c FROM equipment").fetchone()['c']
-    available = conn.execute("SELECT COUNT(*) as c FROM equipment WHERE status='available'").fetchone()['c']
-    borrowed  = conn.execute("SELECT COUNT(*) as c FROM equipment WHERE status='borrowed'").fetchone()['c']
+    total     = db_fetchone(conn, "SELECT COUNT(*) as c FROM equipment")['c']
+    available = db_fetchone(conn, "SELECT COUNT(*) as c FROM equipment WHERE status='available'")['c']
+    borrowed  = db_fetchone(conn, "SELECT COUNT(*) as c FROM equipment WHERE status='borrowed'")['c']
 
-    # Overdue borrows
-    overdue = conn.execute('''
+    overdue = db_fetchall(conn, '''
         SELECT b.*, e.name as eq_name, u.name as user_name, u.email as user_email
         FROM borrows b
         JOIN equipment e ON b.equipment_id=e.id
         JOIN users u ON b.user_id=u.id
-        WHERE b.status='borrowed' AND b.due_date IS NOT NULL AND b.due_date < ?
+        WHERE b.status='borrowed' AND b.due_date IS NOT NULL AND b.due_date < %s
         ORDER BY b.due_date ASC
-    ''', (today,)).fetchall()
+    ''', (today,))
 
-    recent = conn.execute('''
+    recent = db_fetchall(conn, '''
         SELECT b.*, e.name as eq_name, e.category, u.name as user_name
         FROM borrows b
         JOIN equipment e ON b.equipment_id=e.id
         JOIN users u ON b.user_id=u.id
         ORDER BY b.borrow_date DESC LIMIT 8
-    ''').fetchall()
+    ''')
 
-    my_borrows = conn.execute('''
+    my_borrows = db_fetchall(conn, '''
         SELECT b.*, e.name as eq_name, e.category, e.brand, e.image
         FROM borrows b JOIN equipment e ON b.equipment_id=e.id
-        WHERE b.user_id=? AND b.status='borrowed'
+        WHERE b.user_id=%s AND b.status='borrowed'
         ORDER BY b.borrow_date DESC
-    ''', (session['user_id'],)).fetchall()
+    ''', (session['user_id'],))
 
     conn.close()
     return render_template('dashboard.html',
                            total=total, available=available, borrowed=borrowed,
-                           overdue=overdue, recent=recent, my_borrows=my_borrows)
+                           overdue=overdue, recent=recent, my_borrows=my_borrows,
+                           today=today)
 
 
 # ── EQUIPMENT ──────────────────────────────────────────────────────────────────
@@ -302,15 +333,15 @@ def equipment_list():
     query    = 'SELECT * FROM equipment WHERE 1=1'
     params   = []
     if search:
-        query += ' AND (name LIKE ? OR serial_number LIKE ? OR brand LIKE ? OR model LIKE ?)'
+        query += ' AND (name ILIKE %s OR serial_number ILIKE %s OR brand ILIKE %s OR model ILIKE %s)'
         params.extend([f'%{search}%'] * 4)
     if category:
-        query  += ' AND category=?'; params.append(category)
+        query += ' AND category=%s'; params.append(category)
     if status:
-        query  += ' AND status=?'; params.append(status)
+        query += ' AND status=%s'; params.append(status)
     query += ' ORDER BY added_date DESC'
-    equipment  = conn.execute(query, params).fetchall()
-    categories = conn.execute('SELECT DISTINCT category FROM equipment ORDER BY category').fetchall()
+    equipment  = db_fetchall(conn, query, params)
+    categories = db_fetchall(conn, 'SELECT DISTINCT category FROM equipment ORDER BY category')
     conn.close()
     return render_template('equipment_list.html',
                            equipment=equipment, categories=categories,
@@ -321,26 +352,27 @@ def equipment_list():
 @admin_required
 def add_equipment():
     if request.method == 'POST':
-        name = request.form['name']; category = request.form['category']
+        name   = request.form['name'];     category = request.form['category']
         serial = request.form['serial_number']; brand = request.form['brand']
-        model  = request.form['model'];  desc  = request.form['description']
+        model  = request.form['model'];    desc     = request.form['description']
         conn   = get_db()
         try:
-            conn.execute('''INSERT INTO equipment (name, category, serial_number, brand, model, description)
-                            VALUES (?,?,?,?,?,?)''', (name, category, serial, brand, model, desc))
-            eid = conn.execute('SELECT last_insert_rowid()').fetchone()[0]
+            cur = db_execute(conn, '''INSERT INTO equipment
+                             (name, category, serial_number, brand, model, description)
+                             VALUES (%s,%s,%s,%s,%s,%s) RETURNING id''',
+                             (name, category, serial, brand, model, desc))
+            eid = cur.fetchone()['id']
             conn.commit()
-            # Handle image upload
             f = request.files.get('image')
             if f and f.filename and allowed_file(f.filename):
-                ext  = secure_filename(f.filename).rsplit('.', 1)[1].lower()
+                ext   = secure_filename(f.filename).rsplit('.', 1)[1].lower()
                 fname = f'eq_{eid}.{ext}'
                 f.save(os.path.join(UPLOAD_FOLDER, fname))
-                conn.execute('UPDATE equipment SET image=? WHERE id=?', (fname, eid))
+                db_execute(conn, 'UPDATE equipment SET image=%s WHERE id=%s', (fname, eid))
                 conn.commit()
             flash('เพิ่มอุปกรณ์สำเร็จ', 'success')
             return redirect(url_for('equipment_list'))
-        except sqlite3.IntegrityError:
+        except psycopg2.IntegrityError:
             flash('Serial Number นี้มีอยู่แล้วในระบบ', 'danger')
         finally:
             conn.close()
@@ -351,21 +383,21 @@ def add_equipment():
 @login_required
 def equipment_detail(eid):
     conn = get_db()
-    eq   = conn.execute('SELECT * FROM equipment WHERE id=?', (eid,)).fetchone()
+    eq   = db_fetchone(conn, 'SELECT * FROM equipment WHERE id=%s', (eid,))
     if not eq:
         flash('ไม่พบอุปกรณ์', 'danger')
         conn.close()
         return redirect(url_for('equipment_list'))
-    history = conn.execute('''
+    history = db_fetchall(conn, '''
         SELECT b.*, u.name as user_name, u.department
         FROM borrows b JOIN users u ON b.user_id=u.id
-        WHERE b.equipment_id=? ORDER BY b.borrow_date DESC
-    ''', (eid,)).fetchall()
-    current_borrow = conn.execute('''
+        WHERE b.equipment_id=%s ORDER BY b.borrow_date DESC
+    ''', (eid,))
+    current_borrow = db_fetchone(conn, '''
         SELECT b.*, u.name as user_name
         FROM borrows b JOIN users u ON b.user_id=u.id
-        WHERE b.equipment_id=? AND b.status='borrowed'
-    ''', (eid,)).fetchone()
+        WHERE b.equipment_id=%s AND b.status='borrowed'
+    ''', (eid,))
     qr_data  = f"ID:{eid}|ชื่อ:{eq['name']}|Serial:{eq['serial_number']}|หมวด:{eq['category']}"
     qr_image = generate_qr(qr_data)
     conn.close()
@@ -378,24 +410,24 @@ def equipment_detail(eid):
 @admin_required
 def edit_equipment(eid):
     conn = get_db()
-    eq   = conn.execute('SELECT * FROM equipment WHERE id=?', (eid,)).fetchone()
+    eq   = db_fetchone(conn, 'SELECT * FROM equipment WHERE id=%s', (eid,))
     if not eq:
         conn.close()
         return redirect(url_for('equipment_list'))
     if request.method == 'POST':
-        name = request.form['name']; category = request.form['category']
+        name   = request.form['name'];     category = request.form['category']
         serial = request.form['serial_number']; brand = request.form['brand']
-        model  = request.form['model'];  desc  = request.form['description']
+        model  = request.form['model'];    desc     = request.form['description']
         try:
-            conn.execute('''UPDATE equipment SET name=?, category=?, serial_number=?,
-                            brand=?, model=?, description=? WHERE id=?''',
-                         (name, category, serial, brand, model, desc, eid))
+            db_execute(conn, '''UPDATE equipment SET name=%s, category=%s, serial_number=%s,
+                                brand=%s, model=%s, description=%s WHERE id=%s''',
+                       (name, category, serial, brand, model, desc, eid))
             f = request.files.get('image')
             if f and f.filename and allowed_file(f.filename):
                 ext   = secure_filename(f.filename).rsplit('.', 1)[1].lower()
                 fname = f'eq_{eid}.{ext}'
                 f.save(os.path.join(UPLOAD_FOLDER, fname))
-                conn.execute('UPDATE equipment SET image=? WHERE id=?', (fname, eid))
+                db_execute(conn, 'UPDATE equipment SET image=%s WHERE id=%s', (fname, eid))
             conn.commit()
             flash('แก้ไขข้อมูลอุปกรณ์สำเร็จ', 'success')
         except Exception:
@@ -411,14 +443,14 @@ def edit_equipment(eid):
 @admin_required
 def delete_equipment(eid):
     conn = get_db()
-    eq   = conn.execute('SELECT * FROM equipment WHERE id=?', (eid,)).fetchone()
+    eq   = db_fetchone(conn, 'SELECT * FROM equipment WHERE id=%s', (eid,))
     if eq and eq['status'] == 'available':
         if eq['image']:
             try:
                 os.remove(os.path.join(UPLOAD_FOLDER, eq['image']))
             except Exception:
                 pass
-        conn.execute('DELETE FROM equipment WHERE id=?', (eid,))
+        db_execute(conn, 'DELETE FROM equipment WHERE id=%s', (eid,))
         conn.commit()
         flash('ลบอุปกรณ์สำเร็จ', 'success')
     else:
@@ -433,21 +465,20 @@ def delete_equipment(eid):
 @login_required
 def borrow(eid):
     conn = get_db()
-    eq   = conn.execute('SELECT * FROM equipment WHERE id=?', (eid,)).fetchone()
+    eq   = db_fetchone(conn, 'SELECT * FROM equipment WHERE id=%s', (eid,))
     if not eq or eq['status'] != 'available':
         flash('อุปกรณ์ไม่พร้อมให้ยืม', 'danger')
         conn.close()
         return redirect(url_for('equipment_list'))
     due_date = request.form.get('due_date') or None
     notes    = request.form.get('notes', '')
-    conn.execute('INSERT INTO borrows (equipment_id, user_id, due_date, notes) VALUES (?,?,?,?)',
-                 (eid, session['user_id'], due_date, notes))
-    conn.execute("UPDATE equipment SET status='borrowed' WHERE id=?", (eid,))
+    db_execute(conn, 'INSERT INTO borrows (equipment_id, user_id, due_date, notes) VALUES (%s,%s,%s,%s)',
+               (eid, session['user_id'], due_date, notes))
+    db_execute(conn, "UPDATE equipment SET status='borrowed' WHERE id=%s", (eid,))
     conn.commit()
-    # Send confirmation email
-    user = conn.execute('SELECT * FROM users WHERE id=?', (session['user_id'],)).fetchone()
+    user = db_fetchone(conn, 'SELECT * FROM users WHERE id=%s', (session['user_id'],))
     conn.close()
-    if user and user['email']:
+    if user and user.get('email'):
         email_borrow(user['email'], user['name'], eq['name'], due_date)
     flash(f'ยืม "{eq["name"]}" สำเร็จ', 'success')
     return redirect(url_for('dashboard'))
@@ -456,11 +487,11 @@ def borrow(eid):
 @app.route('/return/<int:bid>', methods=['POST'])
 @login_required
 def return_equipment(bid):
-    conn   = get_db()
-    borrow_row = conn.execute('''
+    conn       = get_db()
+    borrow_row = db_fetchone(conn, '''
         SELECT b.*, e.name as eq_name
-        FROM borrows b JOIN equipment e ON b.equipment_id=e.id WHERE b.id=?
-    ''', (bid,)).fetchone()
+        FROM borrows b JOIN equipment e ON b.equipment_id=e.id WHERE b.id=%s
+    ''', (bid,))
     if not borrow_row:
         flash('ไม่พบข้อมูลการยืม', 'danger')
         conn.close()
@@ -469,8 +500,8 @@ def return_equipment(bid):
         flash('ไม่มีสิทธิ์คืนอุปกรณ์ชิ้นนี้', 'danger')
         conn.close()
         return redirect(url_for('dashboard'))
-    conn.execute("UPDATE borrows SET return_date=CURRENT_TIMESTAMP, status='returned' WHERE id=?", (bid,))
-    conn.execute("UPDATE equipment SET status='available' WHERE id=?", (borrow_row['equipment_id'],))
+    db_execute(conn, "UPDATE borrows SET return_date=CURRENT_TIMESTAMP, status='returned' WHERE id=%s", (bid,))
+    db_execute(conn, "UPDATE equipment SET status='available' WHERE id=%s", (borrow_row['equipment_id'],))
     conn.commit()
     conn.close()
     flash(f'คืน "{borrow_row["eq_name"]}" สำเร็จ', 'success')
@@ -485,21 +516,21 @@ def history():
     today = date.today().isoformat()
     conn  = get_db()
     if session.get('role') == 'admin':
-        borrows = conn.execute('''
+        borrows = db_fetchall(conn, '''
             SELECT b.*, e.name as eq_name, e.category, u.name as user_name, u.department
             FROM borrows b
             JOIN equipment e ON b.equipment_id=e.id
             JOIN users u ON b.user_id=u.id
             ORDER BY b.borrow_date DESC
-        ''').fetchall()
+        ''')
     else:
-        borrows = conn.execute('''
+        borrows = db_fetchall(conn, '''
             SELECT b.*, e.name as eq_name, e.category, u.name as user_name, u.department
             FROM borrows b
             JOIN equipment e ON b.equipment_id=e.id
             JOIN users u ON b.user_id=u.id
-            WHERE b.user_id=? ORDER BY b.borrow_date DESC
-        ''', (session['user_id'],)).fetchall()
+            WHERE b.user_id=%s ORDER BY b.borrow_date DESC
+        ''', (session['user_id'],))
     conn.close()
     return render_template('history.html', borrows=borrows, today=today)
 
@@ -511,7 +542,7 @@ def export_history():
     today = date.today().isoformat()
     conn  = get_db()
     if session.get('role') == 'admin':
-        rows = conn.execute('''
+        rows = db_fetchall(conn, '''
             SELECT b.id, e.name as eq_name, e.category, e.serial_number,
                    u.name as user_name, u.department,
                    b.borrow_date, b.due_date, b.return_date, b.status, b.notes
@@ -519,17 +550,17 @@ def export_history():
             JOIN equipment e ON b.equipment_id=e.id
             JOIN users u ON b.user_id=u.id
             ORDER BY b.borrow_date DESC
-        ''').fetchall()
+        ''')
     else:
-        rows = conn.execute('''
+        rows = db_fetchall(conn, '''
             SELECT b.id, e.name as eq_name, e.category, e.serial_number,
                    u.name as user_name, u.department,
                    b.borrow_date, b.due_date, b.return_date, b.status, b.notes
             FROM borrows b
             JOIN equipment e ON b.equipment_id=e.id
             JOIN users u ON b.user_id=u.id
-            WHERE b.user_id=? ORDER BY b.borrow_date DESC
-        ''', (session['user_id'],)).fetchall()
+            WHERE b.user_id=%s ORDER BY b.borrow_date DESC
+        ''', (session['user_id'],))
     conn.close()
 
     headers_th = ['#', 'อุปกรณ์', 'หมวด', 'Serial', 'ผู้ยืม', 'แผนก',
@@ -539,8 +570,6 @@ def export_history():
         wb = openpyxl.Workbook()
         ws = wb.active
         ws.title = 'ประวัติการยืม'
-
-        # Header style
         hdr_fill = PatternFill('solid', fgColor='2563EB')
         hdr_font = Font(bold=True, color='FFFFFF', size=11)
         for col, h in enumerate(headers_th, 1):
@@ -560,10 +589,9 @@ def export_history():
                     row['notes'] or '']
             for c, v in enumerate(vals, 1):
                 cell = ws.cell(row=r, column=c, value=v)
-                if row['status'] == 'borrowed' and (row['due_date'] or '') < today and row['due_date']:
+                if row['status'] == 'borrowed' and row['due_date'] and row['due_date'] < today:
                     cell.fill = PatternFill('solid', fgColor='FEE2E2')
 
-        # Column widths
         widths = [5, 25, 12, 14, 18, 14, 18, 12, 18, 10, 20]
         for i, w in enumerate(widths, 1):
             ws.column_dimensions[get_column_letter(i)].width = w
@@ -575,9 +603,8 @@ def export_history():
                         mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
                         headers={'Content-Disposition': f'attachment; filename=borrow_history_{today}.xlsx'})
 
-    # CSV
-    output  = io.StringIO()
-    writer  = csv.writer(output)
+    output = io.StringIO()
+    writer = csv.writer(output)
     writer.writerow(headers_th)
     status_map = {'borrowed': 'ยืมอยู่', 'returned': 'คืนแล้ว'}
     for row in rows:
@@ -602,7 +629,7 @@ def export_history():
 @admin_required
 def user_list():
     conn  = get_db()
-    users = conn.execute('SELECT * FROM users ORDER BY created_at DESC').fetchall()
+    users = db_fetchall(conn, 'SELECT * FROM users ORDER BY created_at DESC')
     conn.close()
     return render_template('users.html', users=users)
 
@@ -611,18 +638,20 @@ def user_list():
 @admin_required
 def add_user():
     if request.method == 'POST':
-        username = request.form['username']
-        password = hashlib.sha256(request.form['password'].encode()).hexdigest()
-        name = request.form['name']; role = request.form['role']
-        department = request.form['department']; email = request.form.get('email', '')
+        username   = request.form['username']
+        password   = hashlib.sha256(request.form['password'].encode()).hexdigest()
+        name       = request.form['name'];       role       = request.form['role']
+        department = request.form['department']; email      = request.form.get('email', '')
         conn = get_db()
         try:
-            conn.execute('INSERT INTO users (username, password, name, role, department, email) VALUES (?,?,?,?,?,?)',
-                         (username, password, name, role, department, email))
+            db_execute(conn, '''INSERT INTO users
+                         (username, password, name, role, department, email)
+                         VALUES (%s,%s,%s,%s,%s,%s)''',
+                       (username, password, name, role, department, email))
             conn.commit()
             flash('เพิ่มผู้ใช้สำเร็จ', 'success')
             return redirect(url_for('user_list'))
-        except sqlite3.IntegrityError:
+        except psycopg2.IntegrityError:
             flash('ชื่อผู้ใช้นี้มีอยู่แล้ว', 'danger')
         finally:
             conn.close()
@@ -636,7 +665,7 @@ def delete_user(uid):
         flash('ไม่สามารถลบบัญชีของตัวเองได้', 'danger')
         return redirect(url_for('user_list'))
     conn = get_db()
-    conn.execute('DELETE FROM users WHERE id=?', (uid,))
+    db_execute(conn, 'DELETE FROM users WHERE id=%s', (uid,))
     conn.commit()
     conn.close()
     flash('ลบผู้ใช้สำเร็จ', 'success')
@@ -649,7 +678,7 @@ def delete_user(uid):
 @login_required
 def profile():
     conn = get_db()
-    user = conn.execute('SELECT * FROM users WHERE id=?', (session['user_id'],)).fetchone()
+    user = db_fetchone(conn, 'SELECT * FROM users WHERE id=%s', (session['user_id'],))
 
     if request.method == 'POST':
         action = request.form.get('action')
@@ -658,8 +687,8 @@ def profile():
             name       = request.form['name']
             department = request.form['department']
             email      = request.form.get('email', '')
-            conn.execute('UPDATE users SET name=?, department=?, email=? WHERE id=?',
-                         (name, department, email, session['user_id']))
+            db_execute(conn, 'UPDATE users SET name=%s, department=%s, email=%s WHERE id=%s',
+                       (name, department, email, session['user_id']))
             conn.commit()
             session['name'] = name
             flash('อัพเดทข้อมูลสำเร็จ', 'success')
@@ -673,18 +702,19 @@ def profile():
             elif new_pw != confirm:
                 flash('รหัสผ่านใหม่ไม่ตรงกัน', 'danger')
             else:
-                conn.execute('UPDATE users SET password=? WHERE id=?', (new_pw, session['user_id']))
+                db_execute(conn, 'UPDATE users SET password=%s WHERE id=%s',
+                           (new_pw, session['user_id']))
                 conn.commit()
                 flash('เปลี่ยนรหัสผ่านสำเร็จ', 'success')
 
         conn.close()
         return redirect(url_for('profile'))
 
-    my_borrows = conn.execute('''
+    my_borrows = db_fetchall(conn, '''
         SELECT b.*, e.name as eq_name, e.category
         FROM borrows b JOIN equipment e ON b.equipment_id=e.id
-        WHERE b.user_id=? ORDER BY b.borrow_date DESC LIMIT 10
-    ''', (session['user_id'],)).fetchall()
+        WHERE b.user_id=%s ORDER BY b.borrow_date DESC LIMIT 10
+    ''', (session['user_id'],))
     conn.close()
     return render_template('profile.html', user=user, my_borrows=my_borrows)
 
@@ -695,7 +725,7 @@ def profile():
 @admin_required
 def email_settings_page():
     conn = get_db()
-    cfg  = conn.execute('SELECT * FROM email_settings LIMIT 1').fetchone()
+    cfg  = db_fetchone(conn, 'SELECT * FROM email_settings LIMIT 1')
 
     if request.method == 'POST':
         action = request.form.get('action')
@@ -707,31 +737,32 @@ def email_settings_page():
             password = request.form['smtp_password']
             from_    = request.form['smtp_from']
             enabled  = 1 if request.form.get('enabled') else 0
-            conn.execute('''UPDATE email_settings SET smtp_host=?, smtp_port=?, smtp_user=?,
-                            smtp_password=?, smtp_from=?, enabled=? WHERE id=?''',
-                         (host, port, user, password, from_, enabled, cfg['id']))
+            db_execute(conn, '''UPDATE email_settings SET smtp_host=%s, smtp_port=%s, smtp_user=%s,
+                                smtp_password=%s, smtp_from=%s, enabled=%s WHERE id=%s''',
+                       (host, port, user, password, from_, enabled, cfg['id']))
             conn.commit()
             flash('บันทึกการตั้งค่า Email สำเร็จ', 'success')
 
         elif action == 'test':
             test_to = request.form.get('test_email', '')
             ok = send_email(test_to, '[IT Borrow] ทดสอบการส่ง Email',
-                            '<p>ระบบส่ง Email ทำงานปกติ ✅</p>')
-            flash('ส่ง Email ทดสอบสำเร็จ' if ok else 'ส่งไม่สำเร็จ กรุณาตรวจสอบการตั้งค่า', 'success' if ok else 'danger')
+                            '<p>ระบบส่ง Email ทำงานปกติ &#x2705;</p>')
+            flash('ส่ง Email ทดสอบสำเร็จ' if ok else 'ส่งไม่สำเร็จ กรุณาตรวจสอบการตั้งค่า',
+                  'success' if ok else 'danger')
 
         elif action == 'send_overdue':
             today   = date.today().isoformat()
-            overdue = conn.execute('''
+            overdue = db_fetchall(conn, '''
                 SELECT b.*, e.name as eq_name, u.name as user_name, u.email as user_email
                 FROM borrows b
                 JOIN equipment e ON b.equipment_id=e.id
                 JOIN users u ON b.user_id=u.id
-                WHERE b.status='borrowed' AND b.due_date IS NOT NULL AND b.due_date < ?
-            ''', (today,)).fetchall()
-            sent = sum(1 for b in overdue if email_overdue(b['user_email'], b['user_name'], b['eq_name'], b['due_date']))
+                WHERE b.status='borrowed' AND b.due_date IS NOT NULL AND b.due_date < %s
+            ''', (today,))
+            sent = sum(1 for b in overdue
+                       if email_overdue(b['user_email'], b['user_name'], b['eq_name'], b['due_date']))
             flash(f'ส่ง Email แจ้งเตือนเกินกำหนด {sent}/{len(overdue)} รายการ', 'success')
 
-        cfg = conn.execute('SELECT * FROM email_settings LIMIT 1').fetchone()
         conn.close()
         return redirect(url_for('email_settings_page'))
 
@@ -751,23 +782,21 @@ def scan_qr():
 @login_required
 def api_qr(eid):
     conn = get_db()
-    eq   = conn.execute('SELECT * FROM equipment WHERE id=?', (eid,)).fetchone()
+    eq   = db_fetchone(conn, 'SELECT * FROM equipment WHERE id=%s', (eid,))
     conn.close()
     if not eq:
         return jsonify({'error': 'not found'}), 404
-    qr_data  = f"ID:{eid}|ชื่อ:{eq['name']}|Serial:{eq['serial_number']}|หมวด:{eq['category']}"
-    return jsonify({'qr': generate_qr(qr_data), 'equipment': dict(eq)})
+    qr_data = f"ID:{eid}|ชื่อ:{eq['name']}|Serial:{eq['serial_number']}|หมวด:{eq['category']}"
+    return jsonify({'qr': generate_qr(qr_data), 'equipment': eq})
 
 
 # ── SERVE UPLOADS ──────────────────────────────────────────────────────────────
-# Works for both local (static/uploads) and Vercel (/tmp/uploads)
 
 @app.route('/uploads/<path:filename>')
 def uploaded_file(filename):
     return send_from_directory(UPLOAD_FOLDER, filename)
 
 
-# Initialize DB on import so Vercel serverless functions work without __main__
 init_db()
 
 if __name__ == '__main__':
