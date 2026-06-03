@@ -33,6 +33,13 @@
                    value="{{ user.name }}" required>
           </div>
           <div class="mb-3">
+            <label class="form-label fw-semibold small">
+              <i class="bi bi-person-badge me-1 text-primary"></i>เลขประจำตัว
+            </label>
+            <input type="text" name="id_number" class="form-control form-control-sm"
+                   value="{{ user.id_number or '' }}" placeholder="รหัสนักศึกษา / รหัสพนักงาน">
+          </div>
+          <div class="mb-3">
             <label class="form-label fw-semibold small">อีเมล</label>
             <div class="input-group input-group-sm">
               <span class="input-group-text"><i class="bi bi-envelope"></i></span>

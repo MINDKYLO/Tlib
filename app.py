@@ -129,6 +129,7 @@ def init_db():
 
     cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS email TEXT")
     cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS phone TEXT")
+    cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS id_number TEXT")
     cur.execute("ALTER TABLE equipment ADD COLUMN IF NOT EXISTS image TEXT")
 
     cur.execute('SELECT COUNT(*) as c FROM email_settings')
@@ -657,13 +658,13 @@ def add_user():
         password   = hashlib.sha256(request.form['password'].encode()).hexdigest()
         name       = request.form['name'];       role       = request.form['role']
         department = request.form['department']; email      = request.form.get('email', '')
-        phone      = request.form.get('phone', '')
+        phone      = request.form.get('phone', ''); id_number = request.form.get('id_number', '')
         conn = get_db()
         try:
             db_execute(conn, '''INSERT INTO users
-                         (username, password, name, role, department, email, phone)
-                         VALUES (%s,%s,%s,%s,%s,%s,%s)''',
-                       (username, password, name, role, department, email, phone))
+                         (username, password, name, role, department, email, phone, id_number)
+                         VALUES (%s,%s,%s,%s,%s,%s,%s,%s)''',
+                       (username, password, name, role, department, email, phone, id_number))
             conn.commit()
             flash('เพิ่มผู้ใช้สำเร็จ', 'success')
             return redirect(url_for('user_list'))
@@ -688,10 +689,11 @@ def edit_user(uid):
         department = request.form['department']
         email      = request.form.get('email', '')
         phone      = request.form.get('phone', '')
+        id_number  = request.form.get('id_number', '')
         role       = request.form['role']
-        db_execute(conn, '''UPDATE users SET name=%s, department=%s, email=%s, phone=%s, role=%s
-                            WHERE id=%s''',
-                   (name, department, email, phone, role, uid))
+        db_execute(conn, '''UPDATE users SET name=%s, department=%s, email=%s, phone=%s,
+                            id_number=%s, role=%s WHERE id=%s''',
+                   (name, department, email, phone, id_number, role, uid))
         conn.commit()
         conn.close()
         flash(f'อัพเดทข้อมูล {name} สำเร็จ', 'success')
@@ -730,8 +732,10 @@ def profile():
             department = request.form['department']
             email      = request.form.get('email', '')
             phone      = request.form.get('phone', '')
-            db_execute(conn, 'UPDATE users SET name=%s, department=%s, email=%s, phone=%s WHERE id=%s',
-                       (name, department, email, phone, session['user_id']))
+            id_number  = request.form.get('id_number', '')
+            db_execute(conn, '''UPDATE users SET name=%s, department=%s, email=%s,
+                                phone=%s, id_number=%s WHERE id=%s''',
+                       (name, department, email, phone, id_number, session['user_id']))
             conn.commit()
             session['name'] = name
             flash('อัพเดทข้อมูลสำเร็จ', 'success')

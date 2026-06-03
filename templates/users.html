@@ -47,7 +47,12 @@
                 </div>
               </a>
             </td>
-            <td class="small text-muted">{{ u.username }}</td>
+            <td class="small text-muted">
+              <div>{{ u.username }}</div>
+              {% if u.id_number %}
+              <div class="text-primary"><i class="bi bi-person-badge me-1"></i>{{ u.id_number }}</div>
+              {% endif %}
+            </td>
             <td class="small">
               {% if u.phone %}
               <div><i class="bi bi-telephone me-1 text-success"></i>{{ u.phone }}</div>
