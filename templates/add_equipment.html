@@ -25,8 +25,8 @@
               <label class="form-label fw-semibold">หมวดหมู่ <span class="text-danger">*</span></label>
               <select name="category" class="form-select" required>
                 <option value="">-- เลือกหมวดหมู่ --</option>
-                {% for cat in ['Notebook','Monitor','Mobile','Tablet','Camera','Printer','Network','Storage','Peripheral','Other'] %}
-                <option value="{{ cat }}">{{ cat }}</option>
+                {% for cat in categories %}
+                <option value="{{ cat.name }}">{{ cat.name }}</option>
                 {% endfor %}
               </select>
             </div>

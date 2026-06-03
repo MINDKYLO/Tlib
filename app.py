@@ -117,6 +117,16 @@ def init_db():
         enabled       SMALLINT DEFAULT 0
     )''')
 
+    cur.execute('''CREATE TABLE IF NOT EXISTS categories (
+        id         SERIAL PRIMARY KEY,
+        name       TEXT UNIQUE NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )''')
+
+    default_cats = ['Notebook','Monitor','Mobile','Tablet','Camera','Printer','Network','Storage','Peripheral','Other']
+    for cat in default_cats:
+        cur.execute('INSERT INTO categories (name) VALUES (%s) ON CONFLICT (name) DO NOTHING', (cat,))
+
     cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS email TEXT")
     cur.execute("ALTER TABLE equipment ADD COLUMN IF NOT EXISTS image TEXT")
 
@@ -376,7 +386,10 @@ def add_equipment():
             flash('Serial Number นี้มีอยู่แล้วในระบบ', 'danger')
         finally:
             conn.close()
-    return render_template('add_equipment.html')
+    conn = get_db()
+    categories = db_fetchall(conn, 'SELECT name FROM categories ORDER BY name')
+    conn.close()
+    return render_template('add_equipment.html', categories=categories)
 
 
 @app.route('/equipment/<int:eid>')
@@ -435,8 +448,9 @@ def edit_equipment(eid):
         finally:
             conn.close()
         return redirect(url_for('equipment_detail', eid=eid))
+    categories = db_fetchall(conn, 'SELECT name FROM categories ORDER BY name')
     conn.close()
-    return render_template('edit_equipment.html', eq=eq)
+    return render_template('edit_equipment.html', eq=eq, categories=categories)
 
 
 @app.route('/equipment/<int:eid>/delete', methods=['POST'])
@@ -788,6 +802,46 @@ def api_qr(eid):
         return jsonify({'error': 'not found'}), 404
     qr_data = f"ID:{eid}|ชื่อ:{eq['name']}|Serial:{eq['serial_number']}|หมวด:{eq['category']}"
     return jsonify({'qr': generate_qr(qr_data), 'equipment': eq})
+
+
+# ── CATEGORIES ─────────────────────────────────────────────────────────────────
+
+@app.route('/admin/categories', methods=['GET', 'POST'])
+@admin_required
+def category_list():
+    conn = get_db()
+    if request.method == 'POST':
+        name = request.form.get('name', '').strip()
+        if name:
+            try:
+                db_execute(conn, 'INSERT INTO categories (name) VALUES (%s)', (name,))
+                conn.commit()
+                flash(f'เพิ่มหมวดหมู่ "{name}" สำเร็จ', 'success')
+            except psycopg2.IntegrityError:
+                conn.rollback()
+                flash('หมวดหมู่นี้มีอยู่แล้ว', 'danger')
+        conn.close()
+        return redirect(url_for('category_list'))
+    categories = db_fetchall(conn, 'SELECT * FROM categories ORDER BY name')
+    conn.close()
+    return render_template('categories.html', categories=categories)
+
+
+@app.route('/admin/categories/<int:cid>/delete', methods=['POST'])
+@admin_required
+def delete_category(cid):
+    conn = get_db()
+    cat  = db_fetchone(conn, 'SELECT * FROM categories WHERE id=%s', (cid,))
+    if cat:
+        in_use = db_fetchone(conn, 'SELECT COUNT(*) as c FROM equipment WHERE category=%s', (cat['name'],))
+        if in_use['c'] > 0:
+            flash(f'ไม่สามารถลบได้ มีอุปกรณ์ใช้หมวดหมู่นี้อยู่ {in_use["c"]} รายการ', 'danger')
+        else:
+            db_execute(conn, 'DELETE FROM categories WHERE id=%s', (cid,))
+            conn.commit()
+            flash(f'ลบหมวดหมู่ "{cat["name"]}" สำเร็จ', 'success')
+    conn.close()
+    return redirect(url_for('category_list'))
 
 
 # ── SERVE UPLOADS ──────────────────────────────────────────────────────────────

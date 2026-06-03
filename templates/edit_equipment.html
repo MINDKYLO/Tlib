@@ -26,8 +26,8 @@
             <div class="col-md-6">
               <label class="form-label fw-semibold">หมวดหมู่ <span class="text-danger">*</span></label>
               <select name="category" class="form-select" required>
-                {% for cat in ['Notebook','Monitor','Mobile','Tablet','Camera','Printer','Network','Storage','Peripheral','Other'] %}
-                <option value="{{ cat }}" {% if eq.category == cat %}selected{% endif %}>{{ cat }}</option>
+                {% for cat in categories %}
+                <option value="{{ cat.name }}" {% if eq.category == cat.name %}selected{% endif %}>{{ cat.name }}</option>
                 {% endfor %}
               </select>
             </div>
