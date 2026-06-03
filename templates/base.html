@@ -45,6 +45,10 @@
        class="nav-link {% if 'user' in (request.endpoint or '') and request.endpoint != 'dashboard' %}active{% endif %}">
       <i class="bi bi-people"></i><span>จัดการผู้ใช้</span>
     </a>
+    <a href="{{ url_for('overdue_list') }}"
+       class="nav-link {% if request.endpoint == 'overdue_list' %}active{% endif %}">
+      <i class="bi bi-alarm"></i><span>แจ้งเตือนค้างคืน</span>
+    </a>
     <a href="{{ url_for('category_list') }}"
        class="nav-link {% if request.endpoint == 'category_list' %}active{% endif %}">
       <i class="bi bi-tags"></i><span>จัดการหมวดหมู่</span>

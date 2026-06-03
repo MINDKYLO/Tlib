@@ -20,6 +20,7 @@
           <tr>
             <th>ผู้ใช้</th>
             <th>ชื่อผู้ใช้</th>
+            <th>ติดต่อ</th>
             <th>แผนก</th>
             <th>บทบาท</th>
             <th>วันที่สร้าง</th>
@@ -36,6 +37,15 @@
               </div>
             </td>
             <td class="fw-mono small text-muted">{{ u.username }}</td>
+            <td class="small">
+              {% if u.phone %}
+              <div><i class="bi bi-telephone me-1 text-success"></i>{{ u.phone }}</div>
+              {% endif %}
+              {% if u.email %}
+              <div><i class="bi bi-envelope me-1 text-primary"></i>{{ u.email }}</div>
+              {% endif %}
+              {% if not u.phone and not u.email %}-{% endif %}
+            </td>
             <td class="small">{{ u.department or '-' }}</td>
             <td>
               {% if u.role == 'admin' %}

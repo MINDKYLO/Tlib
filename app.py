@@ -128,6 +128,7 @@ def init_db():
         cur.execute('INSERT INTO categories (name) VALUES (%s) ON CONFLICT (name) DO NOTHING', (cat,))
 
     cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS email TEXT")
+    cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS phone TEXT")
     cur.execute("ALTER TABLE equipment ADD COLUMN IF NOT EXISTS image TEXT")
 
     cur.execute('SELECT COUNT(*) as c FROM email_settings')
@@ -656,12 +657,13 @@ def add_user():
         password   = hashlib.sha256(request.form['password'].encode()).hexdigest()
         name       = request.form['name'];       role       = request.form['role']
         department = request.form['department']; email      = request.form.get('email', '')
+        phone      = request.form.get('phone', '')
         conn = get_db()
         try:
             db_execute(conn, '''INSERT INTO users
-                         (username, password, name, role, department, email)
-                         VALUES (%s,%s,%s,%s,%s,%s)''',
-                       (username, password, name, role, department, email))
+                         (username, password, name, role, department, email, phone)
+                         VALUES (%s,%s,%s,%s,%s,%s,%s)''',
+                       (username, password, name, role, department, email, phone))
             conn.commit()
             flash('เพิ่มผู้ใช้สำเร็จ', 'success')
             return redirect(url_for('user_list'))
@@ -701,8 +703,9 @@ def profile():
             name       = request.form['name']
             department = request.form['department']
             email      = request.form.get('email', '')
-            db_execute(conn, 'UPDATE users SET name=%s, department=%s, email=%s WHERE id=%s',
-                       (name, department, email, session['user_id']))
+            phone      = request.form.get('phone', '')
+            db_execute(conn, 'UPDATE users SET name=%s, department=%s, email=%s, phone=%s WHERE id=%s',
+                       (name, department, email, phone, session['user_id']))
             conn.commit()
             session['name'] = name
             flash('อัพเดทข้อมูลสำเร็จ', 'success')
@@ -802,6 +805,26 @@ def api_qr(eid):
         return jsonify({'error': 'not found'}), 404
     qr_data = f"ID:{eid}|ชื่อ:{eq['name']}|Serial:{eq['serial_number']}|หมวด:{eq['category']}"
     return jsonify({'qr': generate_qr(qr_data), 'equipment': eq})
+
+
+# ── OVERDUE MANAGEMENT ─────────────────────────────────────────────────────────
+
+@app.route('/admin/overdue')
+@admin_required
+def overdue_list():
+    today = date.today().isoformat()
+    conn  = get_db()
+    overdue = db_fetchall(conn, '''
+        SELECT b.*, e.name as eq_name, e.category, e.serial_number,
+               u.name as user_name, u.department, u.email as user_email, u.phone as user_phone
+        FROM borrows b
+        JOIN equipment e ON b.equipment_id=e.id
+        JOIN users u ON b.user_id=u.id
+        WHERE b.status='borrowed' AND b.due_date IS NOT NULL AND b.due_date < %s
+        ORDER BY b.due_date ASC
+    ''', (today,))
+    conn.close()
+    return render_template('overdue.html', overdue=overdue, today=today)
 
 
 # ── CATEGORIES ─────────────────────────────────────────────────────────────────
