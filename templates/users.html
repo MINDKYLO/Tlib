@@ -12,6 +12,26 @@
   </a>
 </div>
 
+<form method="GET" action="{{ url_for('user_list') }}" class="mb-3">
+  <div class="input-group">
+    <span class="input-group-text"><i class="bi bi-search"></i></span>
+    <input type="text" name="search" class="form-control"
+           placeholder="ค้นหาด้วยชื่อ, ชื่อผู้ใช้, แผนก, หรือเลขประจำตัว..."
+           value="{{ search }}">
+    {% if search %}
+    <a href="{{ url_for('user_list') }}" class="btn btn-outline-secondary">
+      <i class="bi bi-x-lg"></i>
+    </a>
+    {% endif %}
+    <button type="submit" class="btn btn-primary">ค้นหา</button>
+  </div>
+  {% if search %}
+  <div class="form-text ms-1">
+    ผลลัพธ์ {{ users|length }} รายการ สำหรับ "<strong>{{ search }}</strong>"
+  </div>
+  {% endif %}
+</form>
+
 <div class="card shadow-sm">
   <div class="card-body p-0">
     <div class="table-responsive">

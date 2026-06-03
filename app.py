@@ -644,10 +644,19 @@ def export_history():
 @app.route('/users')
 @admin_required
 def user_list():
-    conn  = get_db()
-    users = db_fetchall(conn, 'SELECT * FROM users ORDER BY created_at DESC')
+    search = request.args.get('search', '').strip()
+    conn   = get_db()
+    if search:
+        users = db_fetchall(conn, '''
+            SELECT * FROM users
+            WHERE name ILIKE %s OR username ILIKE %s
+               OR department ILIKE %s OR id_number ILIKE %s
+            ORDER BY created_at DESC
+        ''', [f'%{search}%'] * 4)
+    else:
+        users = db_fetchall(conn, 'SELECT * FROM users ORDER BY created_at DESC')
     conn.close()
-    return render_template('users.html', users=users)
+    return render_template('users.html', users=users, search=search)
 
 
 @app.route('/users/add', methods=['GET', 'POST'])
