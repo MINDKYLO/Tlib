@@ -7,7 +7,6 @@
     <h4 class="mb-0 fw-bold text-danger">
       <i class="bi bi-alarm me-2"></i>อุปกรณ์ค้างคืน
     </h4>
-    <small class="text-muted">ณ วันที่ {{ today }}</small>
   </div>
   {% if overdue %}
   <a href="{{ url_for('email_settings_page') }}" class="btn btn-danger">
