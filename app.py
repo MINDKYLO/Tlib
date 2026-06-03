@@ -308,9 +308,9 @@ def dashboard():
         FROM borrows b
         JOIN equipment e ON b.equipment_id=e.id
         JOIN users u ON b.user_id=u.id
-        WHERE b.status='borrowed' AND b.due_date IS NOT NULL AND b.due_date < %s
+        WHERE b.status='borrowed' AND b.due_date IS NOT NULL AND b.due_date < CURRENT_DATE
         ORDER BY b.due_date ASC
-    ''', (today,))
+    ''')
 
     recent = db_fetchall(conn, '''
         SELECT b.*, e.name as eq_name, e.category, u.name as user_name
@@ -813,8 +813,8 @@ def email_settings_page():
                 FROM borrows b
                 JOIN equipment e ON b.equipment_id=e.id
                 JOIN users u ON b.user_id=u.id
-                WHERE b.status='borrowed' AND b.due_date IS NOT NULL AND b.due_date < %s
-            ''', (date.today(),))
+                WHERE b.status='borrowed' AND b.due_date IS NOT NULL AND b.due_date < CURRENT_DATE
+            ''')
             sent = sum(1 for b in overdue
                        if email_overdue(b['user_email'], b['user_name'], b['eq_name'], b['due_date']))
             flash(f'ส่ง Email แจ้งเตือนเกินกำหนด {sent}/{len(overdue)} รายการ', 'success')
@@ -860,9 +860,9 @@ def overdue_list():
         FROM borrows b
         JOIN equipment e ON b.equipment_id=e.id
         JOIN users u ON b.user_id=u.id
-        WHERE b.status='borrowed' AND b.due_date IS NOT NULL AND b.due_date < %s
+        WHERE b.status='borrowed' AND b.due_date IS NOT NULL AND b.due_date < CURRENT_DATE
         ORDER BY b.due_date ASC
-    ''', (today,))
+    ''')
     conn.close()
     return render_template('overdue.html', overdue=overdue, today=today_str)
 
