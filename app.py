@@ -295,8 +295,9 @@ def logout():
 @app.route('/')
 @login_required
 def dashboard():
-    conn  = get_db()
-    today = date.today().isoformat()
+    conn      = get_db()
+    today     = date.today()
+    today_str = today.isoformat()
 
     total     = db_fetchone(conn, "SELECT COUNT(*) as c FROM equipment")['c']
     available = db_fetchone(conn, "SELECT COUNT(*) as c FROM equipment WHERE status='available'")['c']
@@ -330,7 +331,7 @@ def dashboard():
     return render_template('dashboard.html',
                            total=total, available=available, borrowed=borrowed,
                            overdue=overdue, recent=recent, my_borrows=my_borrows,
-                           today=today)
+                           today=today_str)
 
 
 # ── EQUIPMENT ──────────────────────────────────────────────────────────────────
@@ -807,14 +808,13 @@ def email_settings_page():
                   'success' if ok else 'danger')
 
         elif action == 'send_overdue':
-            today   = date.today().isoformat()
             overdue = db_fetchall(conn, '''
                 SELECT b.*, e.name as eq_name, u.name as user_name, u.email as user_email
                 FROM borrows b
                 JOIN equipment e ON b.equipment_id=e.id
                 JOIN users u ON b.user_id=u.id
                 WHERE b.status='borrowed' AND b.due_date IS NOT NULL AND b.due_date < %s
-            ''', (today,))
+            ''', (date.today(),))
             sent = sum(1 for b in overdue
                        if email_overdue(b['user_email'], b['user_name'], b['eq_name'], b['due_date']))
             flash(f'ส่ง Email แจ้งเตือนเกินกำหนด {sent}/{len(overdue)} รายการ', 'success')
@@ -851,8 +851,9 @@ def api_qr(eid):
 @app.route('/admin/overdue')
 @admin_required
 def overdue_list():
-    today = date.today().isoformat()
-    conn  = get_db()
+    today     = date.today()
+    today_str = today.isoformat()
+    conn      = get_db()
     overdue = db_fetchall(conn, '''
         SELECT b.*, e.name as eq_name, e.category, e.serial_number,
                u.name as user_name, u.department, u.email as user_email, u.phone as user_phone
@@ -863,7 +864,7 @@ def overdue_list():
         ORDER BY b.due_date ASC
     ''', (today,))
     conn.close()
-    return render_template('overdue.html', overdue=overdue, today=today)
+    return render_template('overdue.html', overdue=overdue, today=today_str)
 
 
 # ── CATEGORIES ─────────────────────────────────────────────────────────────────
