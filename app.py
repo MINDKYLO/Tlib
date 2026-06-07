@@ -480,18 +480,23 @@ def edit_equipment(eid):
 def delete_equipment(eid):
     conn = get_db()
     eq   = db_fetchone(conn, 'SELECT * FROM equipment WHERE id=%s', (eid,))
-    if eq and eq['status'] == 'available':
-        if eq['image']:
-            try:
-                os.remove(os.path.join(UPLOAD_FOLDER, eq['image']))
-            except Exception:
-                pass
-        db_execute(conn, 'DELETE FROM equipment WHERE id=%s', (eid,))
-        conn.commit()
-        flash('ลบอุปกรณ์สำเร็จ', 'success')
-    else:
+    if not eq:
+        conn.close()
+        return redirect(url_for('equipment_list'))
+    if eq['status'] == 'borrowed':
         flash('ไม่สามารถลบอุปกรณ์ที่กำลังถูกยืมอยู่ได้', 'danger')
+        conn.close()
+        return redirect(url_for('equipment_list'))
+    if eq['image']:
+        try:
+            os.remove(os.path.join(UPLOAD_FOLDER, eq['image']))
+        except Exception:
+            pass
+    db_execute(conn, 'DELETE FROM borrows WHERE equipment_id=%s', (eid,))
+    db_execute(conn, 'DELETE FROM equipment WHERE id=%s', (eid,))
+    conn.commit()
     conn.close()
+    flash('ลบอุปกรณ์สำเร็จ', 'success')
     return redirect(url_for('equipment_list'))
 
 
