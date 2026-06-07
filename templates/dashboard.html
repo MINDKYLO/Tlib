@@ -179,31 +179,5 @@
   </div>
 </div>
 
-<!-- QUICK ACTIONS -->
-<div class="row g-2">
-  <div class="col-6 col-md-3">
-    <a href="{{ url_for('equipment_list') }}" class="quick-action-card text-decoration-none">
-      <i class="bi bi-search fs-4 text-primary"></i><span>ค้นหาอุปกรณ์</span>
-    </a>
-  </div>
-  <div class="col-6 col-md-3">
-    <a href="{{ url_for('scan_qr') }}" class="quick-action-card text-decoration-none">
-      <i class="bi bi-qr-code-scan fs-4 text-success"></i><span>สแกน QR Code</span>
-    </a>
-  </div>
-  <div class="col-6 col-md-3">
-    <a href="{{ url_for('history') }}?fmt=excel" class="quick-action-card text-decoration-none"
-       onclick="window.location='{{ url_for('export_history') }}?fmt=excel'; return false;">
-      <i class="bi bi-file-earmark-excel fs-4 text-success"></i><span>Export Excel</span>
-    </a>
-  </div>
-  {% if session.role == 'admin' %}
-  <div class="col-6 col-md-3">
-    <a href="{{ url_for('add_equipment') }}" class="quick-action-card text-decoration-none">
-      <i class="bi bi-plus-circle fs-4 text-danger"></i><span>เพิ่มอุปกรณ์</span>
-    </a>
-  </div>
-  {% endif %}
-</div>
 {% endblock %}
 
