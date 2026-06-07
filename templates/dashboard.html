@@ -42,41 +42,6 @@
 </div>
 {% endif %}
 
-<!-- STAT CARDS -->
-<div class="row g-3 mb-3">
-  <div class="col-6 col-lg-4">
-    <div class="stat-card stat-total">
-      <div class="stat-icon"><i class="bi bi-laptop"></i></div>
-      <div class="stat-body">
-        <div class="stat-num">{{ total }}</div>
-        <div class="stat-label">อุปกรณ์ทั้งหมด</div>
-      </div>
-    </div>
-  </div>
-  <div class="col-6 col-lg-4">
-    <div class="stat-card stat-available">
-      <div class="stat-icon"><i class="bi bi-check-circle"></i></div>
-      <div class="stat-body">
-        <div class="stat-num">{{ available }}</div>
-        <div class="stat-label">พร้อมใช้งาน</div>
-      </div>
-    </div>
-  </div>
-  <div class="col-12 col-lg-4">
-    <div class="stat-card stat-borrowed">
-      <div class="stat-icon"><i class="bi bi-arrow-right-circle"></i></div>
-      <div class="stat-body">
-        <div class="stat-num">{{ borrowed }}</div>
-        <div class="stat-label">กำลังถูกยืม</div>
-        {% if overdue %}
-        <div class="text-danger fw-bold" style="font-size:0.72rem">
-          <i class="bi bi-exclamation-triangle"></i> เกินกำหนด {{ overdue|length }}
-        </div>
-        {% endif %}
-      </div>
-    </div>
-  </div>
-</div>
 
 <!-- MY BORROWS -->
 <div class="row g-3 mb-3">
