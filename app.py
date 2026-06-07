@@ -409,7 +409,7 @@ def add_equipment():
         finally:
             conn.close()
     conn = get_db()
-    categories = db_fetchall(conn, 'SELECT name FROM categories ORDER BY name')
+    categories = db_fetchall(conn, 'SELECT id, name FROM categories ORDER BY name')
     conn.close()
     return render_template('add_equipment.html', categories=categories)
 
