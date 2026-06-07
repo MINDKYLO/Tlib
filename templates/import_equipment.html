@@ -1,0 +1,105 @@
+{% extends 'base.html' %}
+{% block title %}นำเข้าอุปกรณ์จาก Excel{% endblock %}
+
+{% block content %}
+<div class="page-header d-flex align-items-center gap-2">
+  <a href="{{ url_for('equipment_list') }}" class="btn btn-sm btn-outline-secondary">
+    <i class="bi bi-arrow-left"></i>
+  </a>
+  <h4 class="mb-0 fw-bold">
+    <i class="bi bi-file-earmark-excel me-2 text-success"></i>นำเข้าอุปกรณ์จาก Excel
+  </h4>
+</div>
+
+<div class="row justify-content-center g-3">
+  <div class="col-lg-7">
+
+    <!-- ขั้นตอน -->
+    <div class="card shadow-sm mb-3">
+      <div class="card-header fw-semibold">
+        <i class="bi bi-list-ol me-2 text-primary"></i>วิธีการใช้งาน
+      </div>
+      <div class="card-body">
+        <div class="d-flex flex-column gap-3">
+          <div class="d-flex align-items-start gap-3">
+            <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center fw-bold"
+                 style="width:32px;height:32px;min-width:32px">1</div>
+            <div>
+              <div class="fw-semibold">ดาวน์โหลด Template Excel</div>
+              <div class="text-muted small">ไฟล์ตัวอย่างพร้อมหัวข้อที่ถูกต้อง</div>
+              <a href="{{ url_for('download_import_template') }}"
+                 class="btn btn-sm btn-success mt-2">
+                <i class="bi bi-download me-1"></i>ดาวน์โหลด Template
+              </a>
+            </div>
+          </div>
+          <div class="d-flex align-items-start gap-3">
+            <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center fw-bold"
+                 style="width:32px;height:32px;min-width:32px">2</div>
+            <div>
+              <div class="fw-semibold">กรอกข้อมูลอุปกรณ์ลงใน Excel</div>
+              <div class="text-muted small">กรอกตามหัวข้อที่กำหนด ช่องที่มี * จำเป็นต้องกรอก</div>
+            </div>
+          </div>
+          <div class="d-flex align-items-start gap-3">
+            <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center fw-bold"
+                 style="width:32px;height:32px;min-width:32px">3</div>
+            <div>
+              <div class="fw-semibold">อัพโหลดไฟล์</div>
+              <div class="text-muted small">เลือกไฟล์ที่กรอกข้อมูลแล้วและกด "นำเข้า"</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- หัวข้อ Excel -->
+    <div class="card shadow-sm mb-3">
+      <div class="card-header fw-semibold">
+        <i class="bi bi-table me-2 text-success"></i>หัวข้อใน Excel
+      </div>
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-sm mb-0">
+            <thead class="table-light">
+              <tr><th>คอลัมน์</th><th>หัวข้อ</th><th>จำเป็น</th><th>ตัวอย่าง</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>A</td><td>ชื่ออุปกรณ์</td><td><span class="badge bg-danger">*</span></td><td class="text-muted small">MacBook Pro 14"</td></tr>
+              <tr><td>B</td><td>หมวดหมู่</td><td><span class="badge bg-danger">*</span></td><td class="text-muted small">Notebook</td></tr>
+              <tr><td>C</td><td>Serial Number</td><td><span class="badge bg-secondary">ไม่บังคับ</span></td><td class="text-muted small">NB-001</td></tr>
+              <tr><td>D</td><td>ยี่ห้อ</td><td><span class="badge bg-secondary">ไม่บังคับ</span></td><td class="text-muted small">Apple</td></tr>
+              <tr><td>E</td><td>รุ่น</td><td><span class="badge bg-secondary">ไม่บังคับ</span></td><td class="text-muted small">MacBook Pro M3</td></tr>
+              <tr><td>F</td><td>รายละเอียด</td><td><span class="badge bg-secondary">ไม่บังคับ</span></td><td class="text-muted small">16GB RAM 512GB SSD</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- อัพโหลด -->
+    <div class="card shadow-sm">
+      <div class="card-header fw-semibold">
+        <i class="bi bi-upload me-2 text-primary"></i>อัพโหลดไฟล์ Excel
+      </div>
+      <div class="card-body">
+        <form method="POST" action="{{ url_for('import_equipment') }}"
+              enctype="multipart/form-data">
+          <div class="mb-3">
+            <input type="file" name="excel_file" class="form-control"
+                   accept=".xlsx,.xls" required>
+            <div class="form-text">รองรับไฟล์ .xlsx เท่านั้น</div>
+          </div>
+          <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-success flex-grow-1">
+              <i class="bi bi-cloud-upload me-1"></i>นำเข้าข้อมูล
+            </button>
+            <a href="{{ url_for('equipment_list') }}" class="btn btn-outline-secondary">ยกเลิก</a>
+          </div>
+        </form>
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}
