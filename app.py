@@ -142,19 +142,6 @@ def init_db():
                    ON CONFLICT (username) DO NOTHING''',
                 ('admin', admin_pw, 'ผู้ดูแลระบบ', 'admin', 'ฝ่าย IT'))
 
-    sample = [
-        ('MacBook Pro 14"',  'Notebook', 'NB-001', 'Apple', 'MacBook Pro M2', 'มี 16GB RAM / 512GB SSD'),
-        ('Dell Monitor 27"', 'Monitor',  'MN-001', 'Dell',  'U2722D 4K',      'จอ 4K IPS 27 นิ้ว'),
-        ('iPhone 14 Pro',    'Mobile',   'MB-001', 'Apple', 'iPhone 14 Pro',  '256GB Deep Purple'),
-        ('Canon EOS R5',     'Camera',   'CM-001', 'Canon', 'EOS R5',         'กล้อง Mirrorless 45MP'),
-        ('iPad Pro 12.9"',   'Tablet',   'TB-001', 'Apple', 'iPad Pro M2',    '256GB WiFi+Cellular'),
-        ('HP LaserJet Pro',  'Printer',  'PR-001', 'HP',    'LaserJet M404n', 'เครื่องพิมพ์ขาวดำ'),
-    ]
-    for s in sample:
-        cur.execute('''INSERT INTO equipment (name, category, serial_number, brand, model, description)
-                       VALUES (%s, %s, %s, %s, %s, %s)
-                       ON CONFLICT (serial_number) DO NOTHING''', s)
-
     conn.commit()
     conn.close()
 
