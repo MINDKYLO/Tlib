@@ -16,11 +16,13 @@
         <form method="POST" action="{{ url_for('add_equipment') }}"
               enctype="multipart/form-data">
           <div class="row g-3">
+
             <div class="col-12">
               <label class="form-label fw-semibold">ชื่ออุปกรณ์ <span class="text-danger">*</span></label>
               <input type="text" name="name" class="form-control"
                      placeholder="เช่น MacBook Pro 14 inch" required>
             </div>
+
             <div class="col-md-6">
               <label class="form-label fw-semibold">หมวดหมู่ <span class="text-danger">*</span></label>
               <select name="category" class="form-select" required>
@@ -30,22 +32,47 @@
                 {% endfor %}
               </select>
             </div>
-            <div class="col-md-6">
-              <label class="form-label fw-semibold">Serial Number</label>
-              <input type="text" name="serial_number" class="form-control" placeholder="เช่น SN-2024-001">
-            </div>
+
             <div class="col-md-6">
               <label class="form-label fw-semibold">ยี่ห้อ (Brand)</label>
               <input type="text" name="brand" class="form-control" placeholder="เช่น Apple, Dell, HP">
             </div>
-            <div class="col-md-6">
+
+            <div class="col-12">
               <label class="form-label fw-semibold">รุ่น (Model)</label>
               <input type="text" name="model" class="form-control" placeholder="เช่น MacBook Pro M2">
             </div>
+
             <div class="col-12">
               <label class="form-label fw-semibold">รายละเอียด</label>
               <textarea name="description" class="form-control" rows="2"
                         placeholder="สเปค, สี, ความจุ..."></textarea>
+            </div>
+
+            <!-- SERIAL NUMBERS -->
+            <div class="col-12">
+              <label class="form-label fw-semibold">
+                Serial Number
+                <span class="text-muted fw-normal">(เพิ่มได้หลายอัน)</span>
+              </label>
+              <div id="serialList">
+                <div class="serial-row d-flex gap-2 mb-2">
+                  <input type="text" name="serial_number" class="form-control"
+                         placeholder="เช่น SN-2024-001">
+                  <button type="button" class="btn btn-outline-danger btn-remove-serial d-none"
+                          onclick="removeSerial(this)">
+                    <i class="bi bi-trash"></i>
+                  </button>
+                </div>
+              </div>
+              <button type="button" class="btn btn-outline-primary btn-sm mt-1"
+                      onclick="addSerial()">
+                <i class="bi bi-plus-lg me-1"></i>เพิ่ม Serial Number
+              </button>
+              <div class="form-text">
+                <i class="bi bi-info-circle me-1"></i>
+                กรอก Serial Number แต่ละอัน ระบบจะสร้างรายการอุปกรณ์แยกให้อัตโนมัติ
+              </div>
             </div>
 
             <!-- IMAGE UPLOAD -->
@@ -67,6 +94,7 @@
               </button>
               <a href="{{ url_for('equipment_list') }}" class="btn btn-outline-secondary">ยกเลิก</a>
             </div>
+
           </div>
         </form>
       </div>
@@ -77,6 +105,33 @@
 
 {% block scripts %}
 <script>
+function addSerial() {
+  const list = document.getElementById('serialList');
+  const div  = document.createElement('div');
+  div.className = 'serial-row d-flex gap-2 mb-2';
+  div.innerHTML = `
+    <input type="text" name="serial_number" class="form-control" placeholder="เช่น SN-2024-002">
+    <button type="button" class="btn btn-outline-danger" onclick="removeSerial(this)">
+      <i class="bi bi-trash"></i>
+    </button>`;
+  list.appendChild(div);
+  updateRemoveButtons();
+  div.querySelector('input').focus();
+}
+
+function removeSerial(btn) {
+  btn.closest('.serial-row').remove();
+  updateRemoveButtons();
+}
+
+function updateRemoveButtons() {
+  const rows = document.querySelectorAll('.serial-row');
+  rows.forEach((row, i) => {
+    const btn = row.querySelector('.btn-remove-serial, .btn-outline-danger');
+    if (btn) btn.classList.toggle('d-none', rows.length === 1);
+  });
+}
+
 function previewImage(input) {
   const preview = document.getElementById('imagePreview');
   const img     = document.getElementById('previewImg');

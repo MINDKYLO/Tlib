@@ -365,28 +365,47 @@ def equipment_list():
 @admin_required
 def add_equipment():
     if request.method == 'POST':
-        name   = request.form['name'];     category = request.form['category']
-        serial = request.form['serial_number']; brand = request.form['brand']
-        model  = request.form['model'];    desc     = request.form['description']
-        conn   = get_db()
+        name     = request.form['name']
+        category = request.form['category']
+        brand    = request.form['brand']
+        model    = request.form['model']
+        desc     = request.form['description']
+        serials  = request.form.getlist('serial_number')
+        serials  = [s.strip() for s in serials if s.strip()]
+        if not serials:
+            serials = [None]
+
+        conn = get_db()
+        added = 0; skipped = []
+        f = request.files.get('image')
+        img_ext = None
+        if f and f.filename and allowed_file(f.filename):
+            img_ext = secure_filename(f.filename).rsplit('.', 1)[1].lower()
         try:
-            cur = db_execute(conn, '''INSERT INTO equipment
-                             (name, category, serial_number, brand, model, description)
-                             VALUES (%s,%s,%s,%s,%s,%s) RETURNING id''',
-                             (name, category, serial, brand, model, desc))
-            eid = cur.fetchone()['id']
-            conn.commit()
-            f = request.files.get('image')
-            if f and f.filename and allowed_file(f.filename):
-                ext   = secure_filename(f.filename).rsplit('.', 1)[1].lower()
-                fname = f'eq_{eid}.{ext}'
-                f.save(os.path.join(UPLOAD_FOLDER, fname))
-                db_execute(conn, 'UPDATE equipment SET image=%s WHERE id=%s', (fname, eid))
-                conn.commit()
-            flash('เพิ่มอุปกรณ์สำเร็จ', 'success')
+            for serial in serials:
+                try:
+                    cur = db_execute(conn, '''INSERT INTO equipment
+                                 (name, category, serial_number, brand, model, description)
+                                 VALUES (%s,%s,%s,%s,%s,%s) RETURNING id''',
+                                 (name, category, serial or None, brand, model, desc))
+                    eid = cur.fetchone()['id']
+                    conn.commit()
+                    added += 1
+                    if img_ext and f:
+                        fname = f'eq_{eid}.{img_ext}'
+                        f.stream.seek(0)
+                        f.save(os.path.join(UPLOAD_FOLDER, fname))
+                        db_execute(conn, 'UPDATE equipment SET image=%s WHERE id=%s', (fname, eid))
+                        conn.commit()
+                except psycopg2.IntegrityError:
+                    conn.rollback()
+                    skipped.append(serial)
+
+            if added:
+                flash(f'เพิ่มอุปกรณ์สำเร็จ {added} รายการ', 'success')
+            if skipped:
+                flash(f'Serial Number ซ้ำ ข้ามไป: {", ".join(skipped)}', 'warning')
             return redirect(url_for('equipment_list'))
-        except psycopg2.IntegrityError:
-            flash('Serial Number นี้มีอยู่แล้วในระบบ', 'danger')
         finally:
             conn.close()
     conn = get_db()
