@@ -908,7 +908,7 @@ def category_list():
                 conn.rollback()
                 flash('หมวดหมู่นี้มีอยู่แล้ว', 'danger')
         conn.close()
-        return redirect(url_for('category_list'))
+        return redirect(url_for('add_equipment'))
     categories = db_fetchall(conn, 'SELECT * FROM categories ORDER BY name')
     conn.close()
     return render_template('categories.html', categories=categories)
@@ -928,7 +928,7 @@ def delete_category(cid):
             conn.commit()
             flash(f'ลบหมวดหมู่ "{cat["name"]}" สำเร็จ', 'success')
     conn.close()
-    return redirect(url_for('category_list'))
+    return redirect(url_for('add_equipment'))
 
 
 # ── SERVE UPLOADS ──────────────────────────────────────────────────────────────

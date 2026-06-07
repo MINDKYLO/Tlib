@@ -9,12 +9,12 @@
   <h4 class="mb-0 fw-bold"><i class="bi bi-plus-circle me-2 text-primary"></i>เพิ่มอุปกรณ์ใหม่</h4>
 </div>
 
-<div class="row justify-content-center">
-  <div class="col-lg-7">
+<div class="row g-3">
+  <!-- ฟอร์มเพิ่มอุปกรณ์ -->
+  <div class="col-lg-8">
     <div class="card shadow-sm">
       <div class="card-body p-4">
-        <form method="POST" action="{{ url_for('add_equipment') }}"
-              enctype="multipart/form-data">
+        <form method="POST" action="{{ url_for('add_equipment') }}" enctype="multipart/form-data">
           <div class="row g-3">
 
             <div class="col-12">
@@ -65,20 +65,15 @@
                   </button>
                 </div>
               </div>
-              <button type="button" class="btn btn-outline-primary btn-sm mt-1"
-                      onclick="addSerial()">
+              <button type="button" class="btn btn-outline-primary btn-sm mt-1" onclick="addSerial()">
                 <i class="bi bi-plus-lg me-1"></i>เพิ่ม Serial Number
               </button>
-              <div class="form-text">
-                <i class="bi bi-info-circle me-1"></i>
-                กรอก Serial Number แต่ละอัน ระบบจะสร้างรายการอุปกรณ์แยกให้อัตโนมัติ
-              </div>
             </div>
 
-            <!-- IMAGE UPLOAD -->
+            <!-- IMAGE -->
             <div class="col-12">
               <label class="form-label fw-semibold">
-                <i class="bi bi-image me-1 text-primary"></i>รูปภาพอุปกรณ์
+                <i class="bi bi-image me-1 text-primary"></i>รูปภาพ
                 <span class="text-muted fw-normal">(ไม่บังคับ)</span>
               </label>
               <input type="file" name="image" id="imageInput" class="form-control"
@@ -97,6 +92,40 @@
 
           </div>
         </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- จัดการหมวดหมู่ -->
+  <div class="col-lg-4">
+    <div class="card shadow-sm">
+      <div class="card-header fw-semibold">
+        <i class="bi bi-tags me-2 text-primary"></i>จัดการหมวดหมู่
+      </div>
+      <div class="card-body">
+        <form method="POST" action="{{ url_for('category_list') }}" class="mb-3">
+          <div class="input-group">
+            <input type="text" name="name" class="form-control form-control-sm"
+                   placeholder="ชื่อหมวดหมู่ใหม่..." required>
+            <button type="submit" class="btn btn-primary btn-sm">
+              <i class="bi bi-plus-lg"></i>
+            </button>
+          </div>
+        </form>
+
+        <div style="max-height:320px;overflow-y:auto">
+          {% for cat in categories %}
+          <div class="d-flex align-items-center justify-content-between py-1 border-bottom">
+            <span class="small"><i class="bi bi-tag me-2 text-muted"></i>{{ cat.name }}</span>
+            <form method="POST" action="{{ url_for('delete_category', cid=cat.id) }}"
+                  onsubmit="return confirm('ลบหมวดหมู่ {{ cat.name }}?')">
+              <button class="btn btn-xs btn-outline-danger">
+                <i class="bi bi-trash"></i>
+              </button>
+            </form>
+          </div>
+          {% endfor %}
+        </div>
       </div>
     </div>
   </div>
@@ -126,8 +155,8 @@ function removeSerial(btn) {
 
 function updateRemoveButtons() {
   const rows = document.querySelectorAll('.serial-row');
-  rows.forEach((row, i) => {
-    const btn = row.querySelector('.btn-remove-serial, .btn-outline-danger');
+  rows.forEach(row => {
+    const btn = row.querySelector('button');
     if (btn) btn.classList.toggle('d-none', rows.length === 1);
   });
 }

@@ -49,10 +49,6 @@
        class="nav-link {% if request.endpoint == 'overdue_list' %}active{% endif %}">
       <i class="bi bi-alarm"></i><span>แจ้งเตือนค้างคืน</span>
     </a>
-    <a href="{{ url_for('category_list') }}"
-       class="nav-link {% if request.endpoint == 'category_list' %}active{% endif %}">
-      <i class="bi bi-tags"></i><span>จัดการหมวดหมู่</span>
-    </a>
     <a href="{{ url_for('email_settings_page') }}"
        class="nav-link {% if request.endpoint == 'email_settings_page' %}active{% endif %}">
       <i class="bi bi-envelope-gear"></i><span>ตั้งค่า Email</span>
