@@ -41,10 +41,6 @@
        class="nav-link {% if request.endpoint == 'add_equipment' %}active{% endif %}">
       <i class="bi bi-plus-circle"></i><span>เพิ่มอุปกรณ์</span>
     </a>
-    <a href="{{ url_for('import_equipment') }}"
-       class="nav-link {% if request.endpoint == 'import_equipment' %}active{% endif %}">
-      <i class="bi bi-file-earmark-excel"></i><span>นำเข้าจาก Excel</span>
-    </a>
     <a href="{{ url_for('user_list') }}"
        class="nav-link {% if 'user' in (request.endpoint or '') and request.endpoint != 'dashboard' %}active{% endif %}">
       <i class="bi bi-people"></i><span>จัดการผู้ใช้</span>
