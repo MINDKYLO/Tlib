@@ -300,7 +300,9 @@ function addSerial() {
   });
   list.appendChild(div);
   updateSerialRows();
-  div.querySelector('[name="serial_number"]').focus();
+  const sn = div.querySelector('[name="serial_number"]');
+  sn.focus();
+  sn.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
 function removeSerial(btn) {
