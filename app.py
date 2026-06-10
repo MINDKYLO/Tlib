@@ -330,22 +330,81 @@ def equipment_list():
     category = request.args.get('category', '')
     status   = request.args.get('status', '')
     conn     = get_db()
-    query    = 'SELECT * FROM equipment WHERE 1=1'
-    params   = []
+
+    inner_where = '1=1'
+    params = []
     if search:
-        query += ' AND (name ILIKE %s OR serial_number ILIKE %s OR brand ILIKE %s OR model ILIKE %s)'
+        inner_where += ' AND (name ILIKE %s OR serial_number ILIKE %s OR brand ILIKE %s OR model ILIKE %s)'
         params.extend([f'%{search}%'] * 4)
     if category:
-        query += ' AND category=%s'; params.append(category)
-    if status:
-        query += ' AND status=%s'; params.append(status)
-    query += ' ORDER BY added_date DESC'
+        inner_where += ' AND category=%s'
+        params.append(category)
+
+    having = ''
+    if status == 'available':
+        having = "HAVING SUM(CASE WHEN status='available' THEN 1 ELSE 0 END) > 0"
+    elif status == 'borrowed':
+        having = "HAVING SUM(CASE WHEN status='borrowed' THEN 1 ELSE 0 END) > 0"
+
+    query = f'''
+        SELECT name, category,
+               COALESCE(brand,'') AS brand,
+               COALESCE(model,'') AS model,
+               MAX(description) AS description,
+               MAX(image) AS image,
+               COUNT(*) AS total_count,
+               SUM(CASE WHEN status='available' THEN 1 ELSE 0 END) AS available_count,
+               SUM(CASE WHEN status='borrowed'  THEN 1 ELSE 0 END) AS borrowed_count
+        FROM equipment
+        WHERE {inner_where}
+        GROUP BY name, category, COALESCE(brand,''), COALESCE(model,'')
+        {having}
+        ORDER BY name
+    '''
     equipment  = db_fetchall(conn, query, params)
     categories = db_fetchall(conn, 'SELECT DISTINCT category FROM equipment ORDER BY category')
     conn.close()
     return render_template('equipment_list.html',
                            equipment=equipment, categories=categories,
                            search=search, selected_category=category, selected_status=status)
+
+
+@app.route('/equipment/group')
+@login_required
+def equipment_group():
+    name     = request.args.get('name', '')
+    category = request.args.get('category', '')
+    brand    = request.args.get('brand', '')
+    model    = request.args.get('model', '')
+
+    conn  = get_db()
+    items = db_fetchall(conn, '''
+        SELECT e.id, e.name, e.category, e.serial_number, e.brand, e.model,
+               e.status, e.description, e.image, e.added_date,
+               b.id AS borrow_id, b.borrow_date, b.due_date,
+               u.name AS borrower_name, u.id AS borrower_uid
+        FROM equipment e
+        LEFT JOIN borrows b ON b.equipment_id = e.id AND b.status = 'borrowed'
+        LEFT JOIN users u ON b.user_id = u.id
+        WHERE e.name = %s AND e.category = %s
+          AND COALESCE(e.brand,'') = %s
+          AND COALESCE(e.model,'') = %s
+        ORDER BY e.serial_number NULLS LAST, e.id
+    ''', (name, category, brand, model))
+
+    if not items:
+        flash('ไม่พบอุปกรณ์', 'danger')
+        conn.close()
+        return redirect(url_for('equipment_list'))
+
+    sample          = items[0]
+    available_count = sum(1 for i in items if i['status'] == 'available')
+    borrowed_count  = sum(1 for i in items if i['status'] == 'borrowed')
+    conn.close()
+    return render_template('equipment_group.html',
+                           items=items, sample=sample,
+                           available_count=available_count,
+                           borrowed_count=borrowed_count)
 
 
 @app.route('/equipment/add', methods=['GET', 'POST'])

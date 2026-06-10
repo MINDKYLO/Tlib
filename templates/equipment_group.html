@@ -1,0 +1,197 @@
+{% extends 'base.html' %}
+{% block title %}{{ sample.name }}{% endblock %}
+
+{% block content %}
+<div class="page-header d-flex align-items-center gap-2 flex-wrap">
+  <a href="{{ url_for('equipment_list') }}" class="btn btn-sm btn-outline-secondary">
+    <i class="bi bi-arrow-left"></i>
+  </a>
+  <div class="flex-grow-1">
+    <h4 class="mb-0 fw-bold">{{ sample.name }}</h4>
+    <small class="text-muted">
+      {{ sample.category }}
+      {% if sample.brand %} · {{ sample.brand }}{% endif %}
+      {% if sample.model %} · {{ sample.model }}{% endif %}
+    </small>
+  </div>
+  {% if session.role == 'admin' %}
+  <a href="{{ url_for('add_equipment') }}" class="btn btn-sm btn-outline-primary">
+    <i class="bi bi-plus-lg me-1"></i>เพิ่ม Serial
+  </a>
+  {% endif %}
+</div>
+
+<!-- STATUS SUMMARY -->
+<div class="d-flex gap-2 mb-3 flex-wrap">
+  <span class="badge bg-success fs-6 px-3 py-2">
+    <i class="bi bi-check-circle me-1"></i>ว่าง {{ available_count }} รายการ
+  </span>
+  {% if borrowed_count > 0 %}
+  <span class="badge bg-danger fs-6 px-3 py-2">
+    <i class="bi bi-arrow-right-circle me-1"></i>ถูกยืม {{ borrowed_count }} รายการ
+  </span>
+  {% endif %}
+  <span class="badge bg-secondary fs-6 px-3 py-2">
+    รวม {{ items|length }} รายการ
+  </span>
+</div>
+
+<div class="row g-3">
+  {% if sample.image %}
+  <div class="col-12">
+    <div class="card shadow-sm overflow-hidden">
+      <img src="{{ url_for('uploaded_file', filename=sample.image) }}"
+           class="w-100" style="max-height:200px;object-fit:cover" alt="{{ sample.name }}">
+    </div>
+  </div>
+  {% endif %}
+
+  {% if sample.description %}
+  <div class="col-12">
+    <div class="card shadow-sm">
+      <div class="card-body py-2 px-3">
+        <small class="text-muted"><i class="bi bi-card-text me-1"></i>{{ sample.description }}</small>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- SERIAL NUMBER TABLE -->
+  <div class="col-12">
+    <div class="card shadow-sm">
+      <div class="card-header fw-semibold">
+        <i class="bi bi-list-ul me-2 text-primary"></i>รายการ Serial Number ({{ items|length }})
+      </div>
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+              <tr>
+                <th class="text-muted fw-normal ps-3" style="width:40px">#</th>
+                <th>Serial Number</th>
+                <th>สถานะ</th>
+                <th>ผู้ยืม</th>
+                <th>วันครบกำหนด</th>
+                <th>จัดการ</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for item in items %}
+              <tr class="{% if item.status == 'borrowed' %}table-warning{% endif %}">
+                <td class="text-muted small ps-3">{{ loop.index }}</td>
+                <td>
+                  <span class="fw-semibold" style="font-family:monospace">
+                    {{ item.serial_number or '<ไม่มี Serial>' }}
+                  </span>
+                </td>
+                <td>
+                  {% if item.status == 'available' %}
+                  <span class="badge badge-available">ว่าง</span>
+                  {% else %}
+                  <span class="badge badge-borrowed">ถูกยืม</span>
+                  {% endif %}
+                </td>
+                <td class="small">{{ item.borrower_name or '-' }}</td>
+                <td class="small">
+                  {% if item.due_date %}
+                  <span class="text-danger fw-semibold">{{ item.due_date }}</span>
+                  {% else %}-{% endif %}
+                </td>
+                <td>
+                  <div class="d-flex gap-1 flex-wrap">
+                    {% if item.status == 'available' %}
+                    <button class="btn btn-xs btn-primary"
+                            data-bs-toggle="modal"
+                            data-bs-target="#borrowModal{{ item.id }}">
+                      <i class="bi bi-arrow-right-circle me-1"></i>ยืม
+                    </button>
+                    {% else %}
+                      {% if item.borrower_uid == session.user_id or session.role == 'admin' %}
+                      <form method="POST" action="{{ url_for('return_equipment', bid=item.borrow_id) }}"
+                            onsubmit="return confirm('ยืนยันการคืน {{ item.serial_number or item.name }}?')">
+                        <button class="btn btn-xs btn-success">
+                          <i class="bi bi-arrow-return-left me-1"></i>คืน
+                        </button>
+                      </form>
+                      {% endif %}
+                    {% endif %}
+                    <a href="{{ url_for('equipment_detail', eid=item.id) }}"
+                       class="btn btn-xs btn-outline-secondary" title="QR Code / รายละเอียด">
+                      <i class="bi bi-qr-code"></i>
+                    </a>
+                    {% if session.role == 'admin' %}
+                    <a href="{{ url_for('edit_equipment', eid=item.id) }}"
+                       class="btn btn-xs btn-outline-secondary" title="แก้ไข">
+                      <i class="bi bi-pencil"></i>
+                    </a>
+                    {% if item.status == 'available' %}
+                    <form method="POST" action="{{ url_for('delete_equipment', eid=item.id) }}"
+                          onsubmit="return confirm('ลบ {{ item.serial_number or item.name }}?')">
+                      <button class="btn btn-xs btn-outline-danger" title="ลบ">
+                        <i class="bi bi-trash"></i>
+                      </button>
+                    </form>
+                    {% endif %}
+                    {% endif %}
+                  </div>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- BORROW MODALS -->
+{% for item in items %}
+{% if item.status == 'available' %}
+<div class="modal fade" id="borrowModal{{ item.id }}" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">
+          <i class="bi bi-arrow-right-circle me-2 text-primary"></i>ยืมอุปกรณ์
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="POST" action="{{ url_for('borrow', eid=item.id) }}">
+        <div class="modal-body">
+          <div class="borrow-summary mb-3">
+            <div>
+              <div class="fw-bold">{{ item.name }}</div>
+              {% if item.brand or item.model %}
+              <div class="text-muted small">{{ item.brand }} {{ item.model }}</div>
+              {% endif %}
+              <div class="text-muted small">
+                Serial: <span style="font-family:monospace">{{ item.serial_number or '-' }}</span>
+              </div>
+            </div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold small">
+              วันที่ต้องคืน <span class="text-muted fw-normal">(ไม่บังคับ)</span>
+            </label>
+            <input type="date" name="due_date" class="form-control form-control-sm">
+          </div>
+          <div class="mb-2">
+            <label class="form-label fw-semibold small">หมายเหตุ</label>
+            <textarea name="notes" class="form-control form-control-sm" rows="2"
+                      placeholder="วัตถุประสงค์การยืม..."></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">ยกเลิก</button>
+          <button type="submit" class="btn btn-primary">
+            <i class="bi bi-check-lg me-1"></i>ยืนยันการยืม
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endif %}
+{% endfor %}
+{% endblock %}
