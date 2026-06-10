@@ -415,13 +415,25 @@ def add_equipment():
     if request.method == 'POST':
         name     = request.form['name']
         category = request.form['category']
-        brand    = request.form['brand']
-        model    = request.form['model']
-        desc     = request.form['description']
         serials  = request.form.getlist('serial_number')
-        serials  = [s.strip() for s in serials if s.strip()]
-        if not serials:
-            serials = [None]
+        brands   = request.form.getlist('brand')
+        models   = request.form.getlist('model')
+        descs    = request.form.getlist('serial_desc')
+
+        # Align all lists to same length as serials
+        n = len(serials)
+        brands = (brands + [''] * n)[:n]
+        models = (models + [''] * n)[:n]
+        descs  = (descs  + [''] * n)[:n]
+
+        # Build entries, skip completely blank rows
+        entries = [
+            (s.strip() or None, b.strip() or None, m.strip() or None, d.strip() or None)
+            for s, b, m, d in zip(serials, brands, models, descs)
+            if s.strip() or b.strip() or m.strip() or d.strip()
+        ]
+        if not entries:
+            entries = [(None, None, None, None)]
 
         conn = get_db()
         added = 0; skipped = []
@@ -430,12 +442,12 @@ def add_equipment():
         if f and f.filename and allowed_file(f.filename):
             img_ext = secure_filename(f.filename).rsplit('.', 1)[1].lower()
         try:
-            for serial in serials:
+            for serial, brand, model, desc in entries:
                 try:
                     cur = db_execute(conn, '''INSERT INTO equipment
                                  (name, category, serial_number, brand, model, description)
                                  VALUES (%s,%s,%s,%s,%s,%s) RETURNING id''',
-                                 (name, category, serial or None, brand, model, desc))
+                                 (name, category, serial, brand, model, desc))
                     eid = cur.fetchone()['id']
                     conn.commit()
                     added += 1
@@ -447,7 +459,7 @@ def add_equipment():
                         conn.commit()
                 except psycopg2.IntegrityError:
                     conn.rollback()
-                    skipped.append(serial)
+                    skipped.append(serial or '(ไม่มี Serial)')
 
             if added:
                 flash(f'เพิ่มอุปกรณ์สำเร็จ {added} รายการ', 'success')
