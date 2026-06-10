@@ -123,9 +123,11 @@ def init_db():
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )''')
 
-    default_cats = ['Notebook','Monitor','Mobile','Tablet','Camera','Printer','Network','Storage','Peripheral','Other']
-    for cat in default_cats:
-        cur.execute('INSERT INTO categories (name) VALUES (%s) ON CONFLICT (name) DO NOTHING', (cat,))
+    cur.execute('SELECT COUNT(*) as c FROM categories')
+    if not cur.fetchone()['c']:
+        default_cats = ['Notebook','Monitor','Mobile','Tablet','Camera','Printer','Network','Storage','Peripheral','Other']
+        for cat in default_cats:
+            cur.execute('INSERT INTO categories (name) VALUES (%s)', (cat,))
 
     cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS email TEXT")
     cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS phone TEXT")
