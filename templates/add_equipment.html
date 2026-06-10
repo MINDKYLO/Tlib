@@ -35,39 +35,52 @@
 
             <!-- SERIAL NUMBERS (per-serial: Brand, Model, หมายเหตุ) -->
             <div class="col-12">
-              <label class="form-label fw-semibold">
-                รายการอุปกรณ์
-                <span class="text-muted fw-normal small">(เพิ่มได้หลายรายการ — Brand/Model จะ copy อัตโนมัติ)</span>
-              </label>
+              <div class="d-flex justify-content-between align-items-center mb-2">
+                <label class="form-label fw-semibold mb-0">รายการอุปกรณ์</label>
+                <button type="button" class="btn btn-outline-primary btn-sm" onclick="addSerial()">
+                  <i class="bi bi-plus-lg me-1"></i>เพิ่มรายการ
+                </button>
+              </div>
+
+              <!-- Column headers -->
+              <div class="serial-grid-header">
+                <div class="sg-num">#</div>
+                <div class="sg-serial">Serial Number</div>
+                <div class="sg-brand">Brand</div>
+                <div class="sg-model">Model</div>
+                <div class="sg-desc">หมายเหตุ</div>
+                <div class="sg-action"></div>
+              </div>
+
               <div id="serialList">
-                <div class="serial-entry border rounded p-2 mb-2">
-                  <div class="row g-2">
-                    <div class="col-12 col-sm-5">
-                      <input type="text" name="serial_number" class="form-control form-control-sm"
-                             placeholder="Serial Number เช่น SN-001">
-                    </div>
-                    <div class="col-6 col-sm-3">
-                      <input type="text" name="brand" class="form-control form-control-sm"
-                             placeholder="Brand เช่น CISCO">
-                    </div>
-                    <div class="col-6 col-sm-4">
-                      <input type="text" name="model" class="form-control form-control-sm"
-                             placeholder="Model เช่น WS-C2960">
-                    </div>
-                    <div class="col d-flex gap-2">
-                      <input type="text" name="serial_desc" class="form-control form-control-sm flex-grow-1"
-                             placeholder="หมายเหตุ (ไม่บังคับ)">
-                      <button type="button" class="btn btn-outline-danger btn-sm serial-remove-btn d-none"
-                              onclick="removeSerial(this)">
-                        <i class="bi bi-trash"></i>
-                      </button>
-                    </div>
+                <div class="serial-entry serial-grid-row">
+                  <div class="sg-num">
+                    <span class="serial-num badge bg-secondary">1</span>
+                  </div>
+                  <div class="sg-serial">
+                    <input type="text" name="serial_number" class="form-control form-control-sm"
+                           placeholder="เช่น SN-001">
+                  </div>
+                  <div class="sg-brand">
+                    <input type="text" name="brand" class="form-control form-control-sm"
+                           placeholder="เช่น CISCO">
+                  </div>
+                  <div class="sg-model">
+                    <input type="text" name="model" class="form-control form-control-sm"
+                           placeholder="เช่น 2960">
+                  </div>
+                  <div class="sg-desc">
+                    <input type="text" name="serial_desc" class="form-control form-control-sm"
+                           placeholder="หมายเหตุ">
+                  </div>
+                  <div class="sg-action">
+                    <button type="button" class="btn btn-outline-danger btn-sm serial-remove-btn d-none"
+                            onclick="removeSerial(this)">
+                      <i class="bi bi-trash"></i>
+                    </button>
                   </div>
                 </div>
               </div>
-              <button type="button" class="btn btn-outline-primary btn-sm mt-1" onclick="addSerial()">
-                <i class="bi bi-plus-lg me-1"></i>เพิ่มรายการ
-              </button>
             </div>
 
             <!-- IMAGE -->
@@ -171,51 +184,53 @@ function addSerial() {
   const list    = document.getElementById('serialList');
   const entries = list.querySelectorAll('.serial-entry');
 
-  // Copy brand/model from first row as default
+  // Copy brand/model from first row
   let defBrand = '', defModel = '';
   if (entries.length > 0) {
     defBrand = entries[0].querySelector('[name="brand"]').value;
     defModel = entries[0].querySelector('[name="model"]').value;
   }
 
+  const num = entries.length + 1;
   const div = document.createElement('div');
-  div.className = 'serial-entry border rounded p-2 mb-2';
+  div.className = 'serial-entry serial-grid-row';
   div.innerHTML = `
-    <div class="row g-2">
-      <div class="col-12 col-sm-5">
-        <input type="text" name="serial_number" class="form-control form-control-sm"
-               placeholder="Serial Number เช่น SN-001">
-      </div>
-      <div class="col-6 col-sm-3">
-        <input type="text" name="brand" class="form-control form-control-sm"
-               placeholder="Brand" value="${defBrand.replace(/"/g,'&quot;')}">
-      </div>
-      <div class="col-6 col-sm-4">
-        <input type="text" name="model" class="form-control form-control-sm"
-               placeholder="Model" value="${defModel.replace(/"/g,'&quot;')}">
-      </div>
-      <div class="col d-flex gap-2">
-        <input type="text" name="serial_desc" class="form-control form-control-sm flex-grow-1"
-               placeholder="หมายเหตุ (ไม่บังคับ)">
-        <button type="button" class="btn btn-outline-danger btn-sm serial-remove-btn"
-                onclick="removeSerial(this)">
-          <i class="bi bi-trash"></i>
-        </button>
-      </div>
+    <div class="sg-num">
+      <span class="serial-num badge bg-secondary">${num}</span>
+    </div>
+    <div class="sg-serial">
+      <input type="text" name="serial_number" class="form-control form-control-sm" placeholder="เช่น SN-00${num}">
+    </div>
+    <div class="sg-brand">
+      <input type="text" name="brand" class="form-control form-control-sm" placeholder="Brand" value="${defBrand.replace(/"/g,'&quot;')}">
+    </div>
+    <div class="sg-model">
+      <input type="text" name="model" class="form-control form-control-sm" placeholder="Model" value="${defModel.replace(/"/g,'&quot;')}">
+    </div>
+    <div class="sg-desc">
+      <input type="text" name="serial_desc" class="form-control form-control-sm" placeholder="หมายเหตุ">
+    </div>
+    <div class="sg-action">
+      <button type="button" class="btn btn-outline-danger btn-sm serial-remove-btn"
+              onclick="removeSerial(this)">
+        <i class="bi bi-trash"></i>
+      </button>
     </div>`;
   list.appendChild(div);
-  updateRemoveButtons();
+  updateSerialRows();
   div.querySelector('[name="serial_number"]').focus();
 }
 
 function removeSerial(btn) {
   btn.closest('.serial-entry').remove();
-  updateRemoveButtons();
+  updateSerialRows();
 }
 
-function updateRemoveButtons() {
+function updateSerialRows() {
   const entries = document.querySelectorAll('.serial-entry');
-  entries.forEach(entry => {
+  entries.forEach((entry, i) => {
+    const num = entry.querySelector('.serial-num');
+    if (num) num.textContent = i + 1;
     const btn = entry.querySelector('.serial-remove-btn');
     if (btn) btn.classList.toggle('d-none', entries.length === 1);
   });
