@@ -113,19 +113,32 @@
           </div>
         </form>
 
-        <div style="max-height:320px;overflow-y:auto">
-          {% for cat in categories %}
-          <div class="d-flex align-items-center justify-content-between py-1 border-bottom">
-            <span class="small"><i class="bi bi-tag me-2 text-muted"></i>{{ cat.name }}</span>
-            <form method="POST" action="{{ url_for('delete_category', cid=cat.id) }}"
-                  onsubmit="return confirm('ลบหมวดหมู่ {{ cat.name }}?')">
-              <button class="btn btn-xs btn-outline-danger">
-                <i class="bi bi-trash"></i>
-              </button>
-            </form>
+        <!-- ลบหลายรายการ -->
+        <form method="POST" action="{{ url_for('delete_categories_bulk') }}" id="bulkCatForm"
+              onsubmit="return confirmBulk()">
+          <div class="d-flex align-items-center justify-content-between mb-2">
+            <div class="form-check mb-0">
+              <input class="form-check-input" type="checkbox" id="selectAllCats"
+                     onchange="toggleAllCats(this)">
+              <label class="form-check-label small text-muted" for="selectAllCats">เลือกทั้งหมด</label>
+            </div>
+            <button type="submit" class="btn btn-xs btn-danger" id="bulkDeleteBtn" disabled>
+              <i class="bi bi-trash me-1"></i>ลบที่เลือก (<span id="catSelectedCount">0</span>)
+            </button>
           </div>
-          {% endfor %}
-        </div>
+
+          <div style="max-height:300px;overflow-y:auto">
+            {% for cat in categories %}
+            <div class="d-flex align-items-center gap-2 py-1 border-bottom">
+              <input class="form-check-input cat-check" type="checkbox"
+                     name="ids" value="{{ cat.id }}" onchange="updateCatSelected()">
+              <span class="small flex-grow-1">
+                <i class="bi bi-tag me-1 text-muted"></i>{{ cat.name }}
+              </span>
+            </div>
+            {% endfor %}
+          </div>
+        </form>
       </div>
     </div>
   </div>
@@ -134,6 +147,26 @@
 
 {% block scripts %}
 <script>
+function toggleAllCats(master) {
+  document.querySelectorAll('.cat-check').forEach(cb => cb.checked = master.checked);
+  updateCatSelected();
+}
+
+function updateCatSelected() {
+  const checks  = document.querySelectorAll('.cat-check');
+  const checked = document.querySelectorAll('.cat-check:checked').length;
+  document.getElementById('catSelectedCount').textContent = checked;
+  document.getElementById('bulkDeleteBtn').disabled = checked === 0;
+  const all = document.getElementById('selectAllCats');
+  all.checked       = checked === checks.length && checks.length > 0;
+  all.indeterminate = checked > 0 && checked < checks.length;
+}
+
+function confirmBulk() {
+  const n = document.querySelectorAll('.cat-check:checked').length;
+  return confirm(`ลบหมวดหมู่ที่เลือก ${n} รายการ?`);
+}
+
 function addSerial() {
   const list = document.getElementById('serialList');
   const div  = document.createElement('div');

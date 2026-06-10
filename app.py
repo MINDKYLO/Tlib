@@ -979,6 +979,39 @@ def delete_category(cid):
     return redirect(url_for('add_equipment'))
 
 
+@app.route('/admin/categories/bulk-delete', methods=['POST'])
+@admin_required
+def delete_categories_bulk():
+    ids = request.form.getlist('ids')
+    if not ids:
+        flash('ไม่ได้เลือกหมวดหมู่', 'warning')
+        return redirect(url_for('add_equipment'))
+    conn    = get_db()
+    deleted = 0
+    skipped = []
+    for raw_id in ids:
+        try:
+            cid = int(raw_id)
+        except ValueError:
+            continue
+        cat = db_fetchone(conn, 'SELECT * FROM categories WHERE id=%s', (cid,))
+        if not cat:
+            continue
+        in_use = db_fetchone(conn, 'SELECT COUNT(*) as c FROM equipment WHERE category=%s', (cat['name'],))
+        if in_use['c'] > 0:
+            skipped.append(f'{cat["name"]} ({in_use["c"]} รายการ)')
+        else:
+            db_execute(conn, 'DELETE FROM categories WHERE id=%s', (cid,))
+            deleted += 1
+    conn.commit()
+    conn.close()
+    if deleted:
+        flash(f'ลบหมวดหมู่สำเร็จ {deleted} รายการ', 'success')
+    if skipped:
+        flash(f'ลบไม่ได้ (มีอุปกรณ์ใช้อยู่): {", ".join(skipped)}', 'danger')
+    return redirect(url_for('add_equipment'))
+
+
 # ── SERVE UPLOADS ──────────────────────────────────────────────────────────────
 
 @app.route('/uploads/<path:filename>')
