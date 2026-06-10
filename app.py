@@ -1,7 +1,7 @@
 from flask import (Flask, render_template, request, redirect, url_for,
                    session, flash, jsonify, Response, send_from_directory)
 import psycopg2, psycopg2.extras
-import qrcode, io, base64, csv, os, smtplib, hashlib
+import qrcode, io, base64, csv, os, smtplib, hashlib, json
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from datetime import datetime, date
@@ -133,6 +133,7 @@ def init_db():
     cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS phone TEXT")
     cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS id_number TEXT")
     cur.execute("ALTER TABLE equipment ADD COLUMN IF NOT EXISTS image TEXT")
+    cur.execute("ALTER TABLE equipment ADD COLUMN IF NOT EXISTS custom_fields JSONB")
 
     cur.execute('SELECT COUNT(*) as c FROM email_settings')
     if not cur.fetchone()['c']:
@@ -395,11 +396,23 @@ def equipment_group():
     sample          = items[0]
     available_count = sum(1 for i in items if i['status'] == 'available')
     borrowed_count  = sum(1 for i in items if i['status'] == 'borrowed')
+
+    # Collect unique custom field keys in order of first appearance
+    custom_keys = []
+    seen_keys   = set()
+    for item in items:
+        cf = item.get('custom_fields') or {}
+        for k in cf:
+            if k not in seen_keys:
+                custom_keys.append(k)
+                seen_keys.add(k)
+
     conn.close()
     return render_template('equipment_group.html',
                            items=items, sample=sample,
                            available_count=available_count,
-                           borrowed_count=borrowed_count)
+                           borrowed_count=borrowed_count,
+                           custom_keys=custom_keys)
 
 
 @app.route('/equipment/add', methods=['GET', 'POST'])
@@ -413,20 +426,35 @@ def add_equipment():
         models   = request.form.getlist('model')
         descs    = request.form.getlist('serial_desc')
 
+        # Custom columns
+        try:
+            col_defs = json.loads(request.form.get('custom_col_defs', '[]'))
+        except Exception:
+            col_defs = []
+        cf_lists = {col['id']: request.form.getlist(f'cf_{col["id"]}') for col in col_defs}
+
         # Align all lists to same length as serials
         n = len(serials)
         brands = (brands + [''] * n)[:n]
         models = (models + [''] * n)[:n]
         descs  = (descs  + [''] * n)[:n]
 
-        # Build entries, skip completely blank rows
-        entries = [
-            (s.strip() or None, b.strip() or None, m.strip() or None, d.strip() or None)
-            for s, b, m, d in zip(serials, brands, models, descs)
-            if s.strip() or b.strip() or m.strip() or d.strip()
-        ]
+        # Build entries with custom fields, skip completely blank rows
+        entries = []
+        for i, (s, b, m, d) in enumerate(zip(serials, brands, models, descs)):
+            s, b, m, d = s.strip(), b.strip(), m.strip(), d.strip()
+            custom = {}
+            for col in col_defs:
+                vals = cf_lists.get(col['id'], [])
+                v = vals[i].strip() if i < len(vals) else ''
+                if v:
+                    custom[col['name']] = v
+            if not (s or b or m or d or custom):
+                continue
+            entries.append((s or None, b or None, m or None, d or None,
+                            json.dumps(custom, ensure_ascii=False) if custom else None))
         if not entries:
-            entries = [(None, None, None, None)]
+            entries = [(None, None, None, None, None)]
 
         conn = get_db()
         added = 0; skipped = []
@@ -435,12 +463,12 @@ def add_equipment():
         if f and f.filename and allowed_file(f.filename):
             img_ext = secure_filename(f.filename).rsplit('.', 1)[1].lower()
         try:
-            for serial, brand, model, desc in entries:
+            for serial, brand, model, desc, custom_json in entries:
                 try:
                     cur = db_execute(conn, '''INSERT INTO equipment
-                                 (name, category, serial_number, brand, model, description)
-                                 VALUES (%s,%s,%s,%s,%s,%s) RETURNING id''',
-                                 (name, category, serial, brand, model, desc))
+                                 (name, category, serial_number, brand, model, description, custom_fields)
+                                 VALUES (%s,%s,%s,%s,%s,%s,%s::jsonb) RETURNING id''',
+                                 (name, category, serial, brand, model, desc, custom_json))
                     eid = cur.fetchone()['id']
                     conn.commit()
                     added += 1

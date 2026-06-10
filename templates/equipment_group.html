@@ -70,6 +70,9 @@
                 <th class="text-muted fw-normal ps-3" style="width:40px">#</th>
                 <th>Serial Number</th>
                 <th>Brand / Model</th>
+                {% for key in custom_keys %}
+                <th>{{ key }}</th>
+                {% endfor %}
                 <th>สถานะ</th>
                 <th>ผู้ยืม</th>
                 <th>วันครบกำหนด</th>
@@ -93,6 +96,11 @@
                   <div>{{ item.brand or '' }}{% if item.brand and item.model %} · {% endif %}{{ item.model or '' }}</div>
                   {% else %}-{% endif %}
                 </td>
+                {% for key in custom_keys %}
+                <td class="small">
+                  {{ (item.custom_fields or {}).get(key, '-') }}
+                </td>
+                {% endfor %}
                 <td>
                   {% if item.status == 'available' %}
                   <span class="badge badge-available">ว่าง</span>

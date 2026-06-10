@@ -33,7 +33,26 @@
               </select>
             </div>
 
-            <!-- SERIAL NUMBERS (per-serial: Brand, Model, หมายเหตุ) -->
+            <!-- เพิ่มหัวข้อพิเศษ -->
+            <div class="col-12">
+              <label class="form-label fw-semibold small text-muted mb-1">
+                <i class="bi bi-layout-three-columns me-1"></i>หัวข้อพิเศษ
+                <span class="fw-normal">(เพิ่มคอลัมน์เพิ่มเติม เช่น MAC, IP, ห้อง)</span>
+              </label>
+              <div class="d-flex gap-2 align-items-center flex-wrap">
+                <div class="input-group input-group-sm" style="max-width:320px">
+                  <input type="text" id="newColName" class="form-control"
+                         placeholder="ชื่อหัวข้อ เช่น MAC Address"
+                         onkeydown="if(event.key==='Enter'){event.preventDefault();addCustomCol()}">
+                  <button type="button" class="btn btn-outline-secondary" onclick="addCustomCol()">
+                    <i class="bi bi-plus-lg"></i>
+                  </button>
+                </div>
+                <div id="customColTags" class="d-flex gap-1 flex-wrap"></div>
+              </div>
+            </div>
+
+            <!-- SERIAL GRID -->
             <div class="col-12">
               <div class="d-flex justify-content-between align-items-center mb-2">
                 <label class="form-label fw-semibold mb-0">รายการอุปกรณ์</label>
@@ -42,45 +61,47 @@
                 </button>
               </div>
 
-              <!-- Column headers -->
-              <div class="serial-grid-header">
-                <div class="sg-num">#</div>
-                <div class="sg-serial">Serial Number</div>
-                <div class="sg-brand">Brand</div>
-                <div class="sg-model">Model</div>
-                <div class="sg-desc">หมายเหตุ</div>
-                <div class="sg-action"></div>
-              </div>
+              <div id="serialContainer">
+                <!-- Column headers -->
+                <div class="serial-grid-header" id="serialGridHeader">
+                  <div class="sg-num">#</div>
+                  <div class="sg-serial">Serial Number</div>
+                  <div class="sg-brand">Brand</div>
+                  <div class="sg-model">Model</div>
+                  <div class="sg-desc">หมายเหตุ</div>
+                  <!-- custom cols injected here -->
+                  <div class="sg-action" id="sgActionHeader"></div>
+                </div>
 
-              <div id="serialList">
-                <div class="serial-entry serial-grid-row">
-                  <div class="sg-num">
-                    <span class="serial-num badge bg-secondary">1</span>
-                  </div>
-                  <div class="sg-serial">
-                    <input type="text" name="serial_number" class="form-control form-control-sm"
-                           placeholder="เช่น SN-001">
-                  </div>
-                  <div class="sg-brand">
-                    <input type="text" name="brand" class="form-control form-control-sm"
-                           placeholder="เช่น CISCO">
-                  </div>
-                  <div class="sg-model">
-                    <input type="text" name="model" class="form-control form-control-sm"
-                           placeholder="เช่น 2960">
-                  </div>
-                  <div class="sg-desc">
-                    <input type="text" name="serial_desc" class="form-control form-control-sm"
-                           placeholder="หมายเหตุ">
-                  </div>
-                  <div class="sg-action">
-                    <button type="button" class="btn btn-outline-danger btn-sm serial-remove-btn d-none"
-                            onclick="removeSerial(this)">
-                      <i class="bi bi-trash"></i>
-                    </button>
+                <div id="serialList">
+                  <div class="serial-entry serial-grid-row">
+                    <div class="sg-num"><span class="serial-num badge bg-secondary">1</span></div>
+                    <div class="sg-serial">
+                      <input type="text" name="serial_number" class="form-control form-control-sm"
+                             placeholder="เช่น SN-001">
+                    </div>
+                    <div class="sg-brand">
+                      <input type="text" name="brand" class="form-control form-control-sm"
+                             placeholder="เช่น CISCO">
+                    </div>
+                    <div class="sg-model">
+                      <input type="text" name="model" class="form-control form-control-sm"
+                             placeholder="เช่น 2960">
+                    </div>
+                    <div class="sg-desc">
+                      <input type="text" name="serial_desc" class="form-control form-control-sm"
+                             placeholder="หมายเหตุ">
+                    </div>
+                    <div class="sg-action">
+                      <button type="button" class="btn btn-outline-danger btn-sm serial-remove-btn d-none"
+                              onclick="removeSerial(this)">
+                        <i class="bi bi-trash"></i>
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
+              <input type="hidden" id="customColDefs" name="custom_col_defs" value="[]">
             </div>
 
             <!-- IMAGE -->
@@ -180,42 +201,105 @@ function confirmBulk() {
   return confirm(`ลบหมวดหมู่ที่เลือก ${n} รายการ?`);
 }
 
+/* ── custom columns ── */
+let colCounter = 0;
+let activeCols = [];
+
+function escH(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function addCustomCol() {
+  const inp  = document.getElementById('newColName');
+  const name = inp.value.trim();
+  if (!name) { inp.focus(); return; }
+  const id = colCounter++;
+  activeCols.push({id, name});
+  inp.value = '';
+
+  // Tag badge in the tag area
+  const tag = document.createElement('span');
+  tag.className = 'badge bg-primary d-flex align-items-center gap-1';
+  tag.dataset.colId = id;
+  tag.innerHTML = `${escH(name)}<button type="button" class="btn-close btn-close-white"
+    style="font-size:0.5rem" onclick="removeCustomCol(${id})"></button>`;
+  document.getElementById('customColTags').appendChild(tag);
+
+  // Header cell (before the action header)
+  const hCell = document.createElement('div');
+  hCell.className = 'sg-custom';
+  hCell.dataset.colId = id;
+  hCell.innerHTML = `<span class="text-truncate">${escH(name)}</span>`;
+  document.getElementById('serialGridHeader').insertBefore(hCell, document.getElementById('sgActionHeader'));
+
+  // Input cell in each existing serial row
+  document.querySelectorAll('.serial-entry').forEach(row => {
+    row.insertBefore(makeCustomCell(id, name), row.querySelector('.sg-action'));
+  });
+
+  updateGridTemplate();
+  updateColDefs();
+  inp.focus();
+}
+
+function removeCustomCol(id) {
+  activeCols = activeCols.filter(c => c.id !== id);
+  document.querySelectorAll(`[data-col-id="${id}"]`).forEach(el => el.remove());
+  updateGridTemplate();
+  updateColDefs();
+}
+
+function makeCustomCell(id, name) {
+  const cell = document.createElement('div');
+  cell.className = 'sg-custom';
+  cell.dataset.colId = id;
+  cell.innerHTML = `<input type="text" name="cf_${id}" class="form-control form-control-sm" placeholder="${escH(name)}">`;
+  return cell;
+}
+
+function updateGridTemplate() {
+  const customPart = activeCols.map(() => '130px').join(' ');
+  const tpl = ['32px','1fr','110px','110px','130px', customPart, '38px'].filter(s=>s).join(' ');
+  document.getElementById('serialContainer').style.setProperty('--sgrid', tpl);
+}
+
+function updateColDefs() {
+  document.getElementById('customColDefs').value = JSON.stringify(activeCols);
+}
+
+/* ── serial rows ── */
 function addSerial() {
   const list    = document.getElementById('serialList');
   const entries = list.querySelectorAll('.serial-entry');
-
-  // Copy brand/model from first row
   let defBrand = '', defModel = '';
   if (entries.length > 0) {
     defBrand = entries[0].querySelector('[name="brand"]').value;
     defModel = entries[0].querySelector('[name="model"]').value;
   }
-
   const num = entries.length + 1;
   const div = document.createElement('div');
   div.className = 'serial-entry serial-grid-row';
   div.innerHTML = `
-    <div class="sg-num">
-      <span class="serial-num badge bg-secondary">${num}</span>
-    </div>
+    <div class="sg-num"><span class="serial-num badge bg-secondary">${num}</span></div>
     <div class="sg-serial">
       <input type="text" name="serial_number" class="form-control form-control-sm" placeholder="เช่น SN-00${num}">
     </div>
     <div class="sg-brand">
-      <input type="text" name="brand" class="form-control form-control-sm" placeholder="Brand" value="${defBrand.replace(/"/g,'&quot;')}">
+      <input type="text" name="brand" class="form-control form-control-sm" placeholder="Brand" value="${escH(defBrand)}">
     </div>
     <div class="sg-model">
-      <input type="text" name="model" class="form-control form-control-sm" placeholder="Model" value="${defModel.replace(/"/g,'&quot;')}">
+      <input type="text" name="model" class="form-control form-control-sm" placeholder="Model" value="${escH(defModel)}">
     </div>
     <div class="sg-desc">
       <input type="text" name="serial_desc" class="form-control form-control-sm" placeholder="หมายเหตุ">
     </div>
     <div class="sg-action">
       <button type="button" class="btn btn-outline-danger btn-sm serial-remove-btn"
-              onclick="removeSerial(this)">
-        <i class="bi bi-trash"></i>
-      </button>
+              onclick="removeSerial(this)"><i class="bi bi-trash"></i></button>
     </div>`;
+  activeCols.forEach(col => {
+    div.insertBefore(makeCustomCell(col.id, col.name), div.querySelector('.sg-action'));
+  });
   list.appendChild(div);
   updateSerialRows();
   div.querySelector('[name="serial_number"]').focus();
