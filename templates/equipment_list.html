@@ -65,12 +65,7 @@
         </div>
         <div class="flex-grow-1 min-width-0">
           <div class="fw-semibold text-truncate">{{ eq.name }}</div>
-          <div class="text-muted small text-truncate">
-            {% if eq.brand %}{{ eq.brand }}{% endif %}
-            {% if eq.brand and eq.model %} · {% endif %}
-            {% if eq.model %}{{ eq.model }}{% endif %}
-            {% if not eq.brand and not eq.model %}-{% endif %}
-          </div>
+          <div class="text-muted small">{{ eq.category }}</div>
         </div>
         {% if eq.available_count > 0 %}
           <span class="badge badge-available">ว่าง {{ eq.available_count }}</span>
@@ -81,7 +76,6 @@
 
       <div class="eq-card-body">
         <div class="eq-info-row">
-          <span class="text-muted small"><i class="bi bi-tag me-1"></i>{{ eq.category }}</span>
           <span class="text-muted small">
             <i class="bi bi-layers me-1"></i>ทั้งหมด {{ eq.total_count }} รายการ
             {% if eq.borrowed_count > 0 %}
@@ -89,13 +83,10 @@
             {% endif %}
           </span>
         </div>
-        {% if eq.description %}
-        <p class="small text-muted mb-0 text-truncate">{{ eq.description }}</p>
-        {% endif %}
       </div>
 
       <div class="eq-card-footer">
-        <a href="{{ url_for('equipment_group', name=eq.name, category=eq.category, brand=eq.brand, model=eq.model) }}"
+        <a href="{{ url_for('equipment_group', name=eq.name, category=eq.category) }}"
            class="btn btn-sm btn-outline-primary flex-grow-1">
           <i class="bi bi-list-ul me-1"></i>ดู Serial ({{ eq.total_count }})
         </a>

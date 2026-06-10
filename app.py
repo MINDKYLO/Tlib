@@ -350,16 +350,13 @@ def equipment_list():
 
     query = f'''
         SELECT name, category,
-               COALESCE(brand,'') AS brand,
-               COALESCE(model,'') AS model,
-               MAX(description) AS description,
                MAX(image) AS image,
                COUNT(*) AS total_count,
                SUM(CASE WHEN status='available' THEN 1 ELSE 0 END) AS available_count,
                SUM(CASE WHEN status='borrowed'  THEN 1 ELSE 0 END) AS borrowed_count
         FROM equipment
         WHERE {inner_where}
-        GROUP BY name, category, COALESCE(brand,''), COALESCE(model,'')
+        GROUP BY name, category
         {having}
         ORDER BY name
     '''
@@ -376,8 +373,6 @@ def equipment_list():
 def equipment_group():
     name     = request.args.get('name', '')
     category = request.args.get('category', '')
-    brand    = request.args.get('brand', '')
-    model    = request.args.get('model', '')
 
     conn  = get_db()
     items = db_fetchall(conn, '''
@@ -389,10 +384,8 @@ def equipment_group():
         LEFT JOIN borrows b ON b.equipment_id = e.id AND b.status = 'borrowed'
         LEFT JOIN users u ON b.user_id = u.id
         WHERE e.name = %s AND e.category = %s
-          AND COALESCE(e.brand,'') = %s
-          AND COALESCE(e.model,'') = %s
-        ORDER BY e.serial_number NULLS LAST, e.id
-    ''', (name, category, brand, model))
+        ORDER BY COALESCE(e.model,'') NULLS LAST, e.serial_number NULLS LAST, e.id
+    ''', (name, category))
 
     if not items:
         flash('ไม่พบอุปกรณ์', 'danger')

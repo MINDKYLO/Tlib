@@ -69,6 +69,7 @@
               <tr>
                 <th class="text-muted fw-normal ps-3" style="width:40px">#</th>
                 <th>Serial Number</th>
+                <th>Brand / Model</th>
                 <th>สถานะ</th>
                 <th>ผู้ยืม</th>
                 <th>วันครบกำหนด</th>
@@ -81,8 +82,16 @@
                 <td class="text-muted small ps-3">{{ loop.index }}</td>
                 <td>
                   <span class="fw-semibold" style="font-family:monospace">
-                    {{ item.serial_number or '<ไม่มี Serial>' }}
+                    {{ item.serial_number or '-' }}
                   </span>
+                  {% if item.description %}
+                  <div class="text-muted" style="font-size:0.72rem">{{ item.description }}</div>
+                  {% endif %}
+                </td>
+                <td class="small">
+                  {% if item.brand or item.model %}
+                  <div>{{ item.brand or '' }}{% if item.brand and item.model %} · {% endif %}{{ item.model or '' }}</div>
+                  {% else %}-{% endif %}
                 </td>
                 <td>
                   {% if item.status == 'available' %}
