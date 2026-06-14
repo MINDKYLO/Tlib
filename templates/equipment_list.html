@@ -26,7 +26,7 @@
         </div>
       </div>
       <div class="col-6 col-md-3">
-        <select name="category" class="form-select form-select-sm">
+        <select name="category" class="form-select form-select-sm" onchange="this.form.submit()">
           <option value="">หมวดหมู่ทั้งหมด</option>
           {% for cat in categories %}
           <option value="{{ cat.category }}" {% if selected_category == cat.category %}selected{% endif %}>
@@ -36,7 +36,7 @@
         </select>
       </div>
       <div class="col-6 col-md-2">
-        <select name="status" class="form-select form-select-sm">
+        <select name="status" class="form-select form-select-sm" onchange="this.form.submit()">
           <option value="">สถานะทั้งหมด</option>
           <option value="available" {% if selected_status == 'available' %}selected{% endif %}>มีว่าง</option>
           <option value="borrowed"  {% if selected_status == 'borrowed'  %}selected{% endif %}>ถูกยืม</option>
