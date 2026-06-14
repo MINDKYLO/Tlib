@@ -459,9 +459,12 @@ def add_equipment():
         conn = get_db()
         added = 0; skipped = []
         f = request.files.get('image')
-        img_ext = None
+        img_data = None
         if f and f.filename and allowed_file(f.filename):
-            img_ext = secure_filename(f.filename).rsplit('.', 1)[1].lower()
+            ext  = secure_filename(f.filename).rsplit('.', 1)[1].lower()
+            mime = 'image/jpeg' if ext in ('jpg', 'jpeg') else f'image/{ext}'
+            raw  = f.stream.read()
+            img_data = f'data:{mime};base64,' + base64.b64encode(raw).decode()
         try:
             for serial, brand, model, desc, custom_json in entries:
                 try:
@@ -472,11 +475,8 @@ def add_equipment():
                     eid = cur.fetchone()['id']
                     conn.commit()
                     added += 1
-                    if img_ext and f:
-                        fname = f'eq_{eid}.{img_ext}'
-                        f.stream.seek(0)
-                        f.save(os.path.join(UPLOAD_FOLDER, fname))
-                        db_execute(conn, 'UPDATE equipment SET image=%s WHERE id=%s', (fname, eid))
+                    if img_data:
+                        db_execute(conn, 'UPDATE equipment SET image=%s WHERE id=%s', (img_data, eid))
                         conn.commit()
                 except psycopg2.IntegrityError:
                     conn.rollback()
@@ -540,10 +540,11 @@ def edit_equipment(eid):
                        (name, category, serial, brand, model, desc, eid))
             f = request.files.get('image')
             if f and f.filename and allowed_file(f.filename):
-                ext   = secure_filename(f.filename).rsplit('.', 1)[1].lower()
-                fname = f'eq_{eid}.{ext}'
-                f.save(os.path.join(UPLOAD_FOLDER, fname))
-                db_execute(conn, 'UPDATE equipment SET image=%s WHERE id=%s', (fname, eid))
+                ext  = secure_filename(f.filename).rsplit('.', 1)[1].lower()
+                mime = 'image/jpeg' if ext in ('jpg', 'jpeg') else f'image/{ext}'
+                raw  = f.stream.read()
+                img_data = f'data:{mime};base64,' + base64.b64encode(raw).decode()
+                db_execute(conn, 'UPDATE equipment SET image=%s WHERE id=%s', (img_data, eid))
             conn.commit()
             flash('แก้ไขข้อมูลอุปกรณ์สำเร็จ', 'success')
         except Exception:
@@ -568,7 +569,7 @@ def delete_equipment(eid):
         flash('ไม่สามารถลบอุปกรณ์ที่กำลังถูกยืมอยู่ได้', 'danger')
         conn.close()
         return redirect(url_for('equipment_list'))
-    if eq['image']:
+    if eq['image'] and not eq['image'].startswith('data:'):
         try:
             os.remove(os.path.join(UPLOAD_FOLDER, eq['image']))
         except Exception:

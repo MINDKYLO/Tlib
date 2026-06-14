@@ -55,7 +55,7 @@
               </label>
               {% if eq.image %}
               <div class="mb-2">
-                <img src="{{ url_for('uploaded_file', filename=eq.image) }}"
+                <img src="{{ eq.image if eq.image.startswith('data:') else url_for('uploaded_file', filename=eq.image) }}"
                      class="img-thumbnail" style="max-height:120px">
                 <div class="text-muted small mt-1">รูปปัจจุบัน — อัพโหลดใหม่เพื่อเปลี่ยน</div>
               </div>
