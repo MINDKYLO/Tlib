@@ -110,12 +110,20 @@
               </label>
               <div id="pasteZone"
                    class="border rounded p-3 text-center text-muted small"
-                   style="border-style:dashed!important;cursor:pointer;min-height:72px;display:flex;align-items:center;justify-content:center;gap:8px;flex-direction:column"
-                   onclick="document.getElementById('imageInput').click()"
+                   style="border-style:dashed!important;min-height:90px;display:flex;align-items:center;justify-content:center;gap:10px;flex-direction:column"
                    ondragover="event.preventDefault()"
                    ondrop="handleDrop(event)">
-                <i class="bi bi-clipboard-image fs-4"></i>
-                <span>วางรูปด้วย <kbd>Ctrl+V</kbd> · ลากวาง · หรือ<span class="text-primary"> คลิกเพื่อเลือกไฟล์</span></span>
+                <i class="bi bi-image fs-3"></i>
+                <div class="d-flex gap-2 flex-wrap justify-content-center">
+                  <button type="button" class="btn btn-sm btn-primary" onclick="pasteFromClipboard()">
+                    <i class="bi bi-clipboard-image me-1"></i>วางรูปจาก Clipboard
+                  </button>
+                  <button type="button" class="btn btn-sm btn-outline-secondary"
+                          onclick="document.getElementById('imageInput').click()">
+                    <i class="bi bi-folder2-open me-1"></i>เลือกไฟล์
+                  </button>
+                </div>
+                <span class="text-muted" style="font-size:0.7rem">หรือลากรูปมาวาง · Ctrl+V</span>
               </div>
               <input type="file" name="image" id="imageInput" class="d-none"
                      accept="image/*" onchange="previewImage(this)">
@@ -362,6 +370,29 @@ function showImageFile(file) {
     img.src = ev.target.result;
   };
   reader.readAsDataURL(file);
+}
+
+async function pasteFromClipboard() {
+  // Use Clipboard API (works with Excel, screenshots, etc.)
+  if (!navigator.clipboard || !navigator.clipboard.read) {
+    alert('เบราว์เซอร์นี้ไม่รองรับ กรุณาใช้ Chrome/Edge และกด Ctrl+V แทนครับ');
+    return;
+  }
+  try {
+    const items = await navigator.clipboard.read();
+    for (const item of items) {
+      const imgType = item.types.find(t => t.startsWith('image/'));
+      if (imgType) {
+        const blob = await item.getType(imgType);
+        showImageFile(new File([blob], 'image.png', { type: imgType }));
+        return;
+      }
+    }
+    alert('ไม่พบรูปภาพใน Clipboard\nกรุณา Copy รูปก่อนแล้วกดปุ่มอีกครั้งครับ');
+  } catch (err) {
+    // Permission denied → fall back to file picker
+    document.getElementById('imageInput').click();
+  }
 }
 
 function previewImage(input) {
