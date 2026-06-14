@@ -37,15 +37,6 @@
 </div>
 
 <div class="row g-3">
-  {% if sample.image %}
-  <div class="col-12">
-    <div class="card shadow-sm overflow-hidden">
-      <img src="{{ url_for('uploaded_file', filename=sample.image) }}"
-           class="w-100" style="max-height:200px;object-fit:cover" alt="{{ sample.name }}">
-    </div>
-  </div>
-  {% endif %}
-
   {% if sample.description %}
   <div class="col-12">
     <div class="card shadow-sm">
