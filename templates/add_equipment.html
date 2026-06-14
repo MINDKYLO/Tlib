@@ -334,18 +334,32 @@ function updateSerialRows() {
 }
 
 function showImageFile(file) {
-  if (!file || !file.type.startsWith('image/')) return;
-  // Inject file into the hidden input via DataTransfer
-  const dt = new DataTransfer();
-  dt.items.add(file);
-  const inp = document.getElementById('imageInput');
-  inp.files = dt.files;
+  if (!file) return;
+  // Accept any image/* OR files with image extension (Excel pastes as image/bmp or no type)
+  const isImage = file.type.startsWith('image/') ||
+                  /\.(png|jpg|jpeg|gif|webp|bmp|tiff?)$/i.test(file.name);
+  if (!isImage && file.type && !file.type.startsWith('image/')) return;
 
   const reader = new FileReader();
-  reader.onload = e => {
-    document.getElementById('previewImg').src = e.target.result;
-    document.getElementById('imagePreview').classList.remove('d-none');
-    document.getElementById('pasteZone').classList.add('d-none');
+  reader.onload = ev => {
+    const img = new Image();
+    img.onload = () => {
+      // Convert any format (BMP, TIFF…) to PNG via canvas so server accepts it
+      const canvas = document.createElement('canvas');
+      canvas.width  = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      canvas.getContext('2d').drawImage(img, 0, 0);
+      canvas.toBlob(blob => {
+        const pngFile = new File([blob], 'image.png', { type: 'image/png' });
+        const dt = new DataTransfer();
+        dt.items.add(pngFile);
+        document.getElementById('imageInput').files = dt.files;
+        document.getElementById('previewImg').src   = canvas.toDataURL('image/png');
+        document.getElementById('imagePreview').classList.remove('d-none');
+        document.getElementById('pasteZone').classList.add('d-none');
+      }, 'image/png');
+    };
+    img.src = ev.target.result;
   };
   reader.readAsDataURL(file);
 }
