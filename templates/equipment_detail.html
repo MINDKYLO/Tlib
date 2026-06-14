@@ -13,8 +13,8 @@
 </div>
 
 <div class="row g-3">
-  <!-- LEFT -->
-  <div class="col-lg-5">
+  <!-- DETAIL -->
+  <div class="col-12 col-lg-7 mx-auto">
     <!-- Equipment Image -->
     {% if eq.image %}
     <div class="card shadow-sm mb-3 overflow-hidden">
@@ -111,52 +111,6 @@
         <button class="btn btn-sm btn-outline-primary w-100" onclick="downloadQR()">
           <i class="bi bi-download me-1"></i>ดาวน์โหลด QR Code
         </button>
-      </div>
-    </div>
-  </div>
-
-  <!-- RIGHT: HISTORY -->
-  <div class="col-lg-7">
-    <div class="card shadow-sm">
-      <div class="card-header fw-semibold">
-        <i class="bi bi-clock-history me-2 text-primary"></i>ประวัติการยืม ({{ history|length }} ครั้ง)
-      </div>
-      <div class="card-body p-0">
-        {% if history %}
-        <div class="table-responsive">
-          <table class="table table-hover table-sm mb-0">
-            <thead class="table-light">
-              <tr><th>ผู้ยืม</th><th>วันที่ยืม</th><th>วันที่คืน</th><th>สถานะ</th></tr>
-            </thead>
-            <tbody>
-              {% for b in history %}
-              <tr>
-                <td>
-                  <div class="fw-semibold small">{{ b.user_name }}</div>
-                  {% if b.department %}
-                  <div class="text-muted" style="font-size:0.7rem">{{ b.department }}</div>
-                  {% endif %}
-                </td>
-                <td class="small">{{ b.borrow_date[:10] }}</td>
-                <td class="small">{{ b.return_date[:10] if b.return_date else '-' }}</td>
-                <td>
-                  {% if b.status == 'borrowed' %}
-                    <span class="badge badge-borrowed">ยืมอยู่</span>
-                  {% else %}
-                    <span class="badge badge-returned">คืนแล้ว</span>
-                  {% endif %}
-                </td>
-              </tr>
-              {% endfor %}
-            </tbody>
-          </table>
-        </div>
-        {% else %}
-        <div class="empty-state py-4">
-          <i class="bi bi-clock-history fs-2 text-muted d-block mb-2"></i>
-          <p class="text-muted">ยังไม่มีประวัติการยืม</p>
-        </div>
-        {% endif %}
       </div>
     </div>
   </div>

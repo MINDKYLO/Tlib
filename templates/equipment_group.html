@@ -68,7 +68,6 @@
             <thead class="table-light">
               <tr>
                 <th class="text-muted fw-normal ps-3" style="width:40px">#</th>
-                <th style="width:60px"></th>
                 <th>Serial Number</th>
                 <th>Brand / Model</th>
                 {% for key in custom_keys %}
@@ -84,19 +83,6 @@
               {% for item in items %}
               <tr class="{% if item.status == 'borrowed' %}table-warning{% endif %}">
                 <td class="text-muted small ps-3">{{ loop.index }}</td>
-                <td class="p-1 text-center">
-                  {% if item.image %}
-                  <img src="{{ url_for('uploaded_file', filename=item.image) }}"
-                       class="rounded" style="width:48px;height:48px;object-fit:cover;cursor:pointer"
-                       onclick="showImg('{{ url_for('uploaded_file', filename=item.image) }}', '{{ item.serial_number or item.name }}')"
-                       title="คลิกเพื่อขยาย">
-                  {% else %}
-                  <div class="rounded bg-light d-flex align-items-center justify-content-center text-muted"
-                       style="width:48px;height:48px;font-size:1.2rem">
-                    <i class="bi bi-image"></i>
-                  </div>
-                  {% endif %}
-                </td>
                 <td>
                   <span class="fw-semibold" style="font-family:monospace">
                     {{ item.serial_number or '-' }}
@@ -226,28 +212,4 @@
 {% endif %}
 {% endfor %}
 
-<!-- Image viewer modal -->
-<div class="modal fade" id="imgModal" tabindex="-1">
-  <div class="modal-dialog modal-dialog-centered modal-lg">
-    <div class="modal-content bg-dark border-0">
-      <div class="modal-header border-0 pb-0">
-        <span id="imgModalLabel" class="text-white small"></span>
-        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-      </div>
-      <div class="modal-body text-center p-2">
-        <img id="imgModalSrc" src="" class="img-fluid rounded" style="max-height:80vh">
-      </div>
-    </div>
-  </div>
-</div>
-{% endblock %}
-
-{% block scripts %}
-<script>
-function showImg(src, label) {
-  document.getElementById('imgModalSrc').src   = src;
-  document.getElementById('imgModalLabel').textContent = label;
-  new bootstrap.Modal(document.getElementById('imgModal')).show();
-}
-</script>
 {% endblock %}
