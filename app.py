@@ -568,6 +568,36 @@ def edit_equipment(eid):
     return render_template('edit_equipment.html', eq=eq, categories=categories)
 
 
+@app.route('/equipment/<int:eid>/duplicate', methods=['POST'])
+@admin_required
+def duplicate_equipment(eid):
+    conn = get_db()
+    eq   = db_fetchone(conn, 'SELECT * FROM equipment WHERE id=%s', (eid,))
+    if not eq:
+        conn.close()
+        return redirect(url_for('equipment_list'))
+    try:
+        qty = max(1, min(int(request.form.get('qty', 1)), 999))
+    except (ValueError, TypeError):
+        qty = 1
+    added = 0
+    try:
+        for _ in range(qty):
+            cur = db_execute(conn, '''
+                INSERT INTO equipment (name, category, brand, model, description, image, custom_fields)
+                VALUES (%s,%s,%s,%s,%s,%s,%s::jsonb) RETURNING id''',
+                (eq['name'], eq['category'], eq['brand'], eq['model'],
+                 eq['description'], eq['image'],
+                 json.dumps(dict(eq['custom_fields'])) if eq['custom_fields'] else None))
+            conn.commit()
+            added += 1
+    except Exception:
+        conn.rollback()
+    finally:
+        conn.close()
+    return redirect(url_for('equipment_group', name=eq['name'], category=eq['category']))
+
+
 @app.route('/equipment/<int:eid>/delete', methods=['POST'])
 @admin_required
 def delete_equipment(eid):
