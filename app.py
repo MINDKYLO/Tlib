@@ -486,7 +486,7 @@ def add_equipment():
                 flash(f'เพิ่มอุปกรณ์สำเร็จ {added} รายการ', 'success')
             if skipped:
                 flash(f'Serial Number ซ้ำ ข้ามไป: {", ".join(skipped)}', 'warning')
-            return redirect(url_for('equipment_list'))
+            return redirect(url_for('add_equipment'))
         finally:
             conn.close()
     conn = get_db()
