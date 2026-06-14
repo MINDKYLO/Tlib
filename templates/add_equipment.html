@@ -11,7 +11,7 @@
 
 <div class="row g-3">
   <!-- ฟอร์มเพิ่มอุปกรณ์ -->
-  <div class="col-lg-8">
+  <div class="col-12">
     <div class="card shadow-sm">
       <div class="card-body p-4">
         <form method="POST" action="{{ url_for('add_equipment') }}" enctype="multipart/form-data">
@@ -25,12 +25,18 @@
 
             <div class="col-md-6">
               <label class="form-label fw-semibold">หมวดหมู่ <span class="text-danger">*</span></label>
-              <select name="category" class="form-select" required>
-                <option value="">-- เลือกหมวดหมู่ --</option>
-                {% for cat in categories %}
-                <option value="{{ cat.name }}">{{ cat.name }}</option>
-                {% endfor %}
-              </select>
+              <div class="d-flex gap-2">
+                <select name="category" class="form-select" required>
+                  <option value="">-- เลือกหมวดหมู่ --</option>
+                  {% for cat in categories %}
+                  <option value="{{ cat.name }}">{{ cat.name }}</option>
+                  {% endfor %}
+                </select>
+                <button type="button" class="btn btn-outline-secondary btn-sm text-nowrap"
+                        data-bs-toggle="offcanvas" data-bs-target="#catOffcanvas">
+                  <i class="bi bi-tags me-1"></i>จัดการ
+                </button>
+              </div>
             </div>
 
             <!-- เพิ่มหัวข้อพิเศษ -->
@@ -149,51 +155,51 @@
     </div>
   </div>
 
-  <!-- จัดการหมวดหมู่ -->
-  <div class="col-lg-4">
-    <div class="card shadow-sm">
-      <div class="card-header fw-semibold">
-        <i class="bi bi-tags me-2 text-primary"></i>จัดการหมวดหมู่
-      </div>
-      <div class="card-body">
-        <form method="POST" action="{{ url_for('category_list') }}" class="mb-3">
-          <div class="input-group">
-            <input type="text" name="name" class="form-control form-control-sm"
-                   placeholder="ชื่อหมวดหมู่ใหม่..." required>
-            <button type="submit" class="btn btn-primary btn-sm">
-              <i class="bi bi-plus-lg"></i>
-            </button>
-          </div>
-        </form>
+</div>
 
-        <!-- ลบหลายรายการ -->
-        <form method="POST" action="{{ url_for('delete_categories_bulk') }}" id="bulkCatForm"
-              onsubmit="return confirmBulk()">
-          <div class="d-flex align-items-center justify-content-between mb-2">
-            <div class="form-check mb-0">
-              <input class="form-check-input" type="checkbox" id="selectAllCats"
-                     onchange="toggleAllCats(this)">
-              <label class="form-check-label small text-muted" for="selectAllCats">เลือกทั้งหมด</label>
-            </div>
-            <button type="submit" class="btn btn-xs btn-danger" id="bulkDeleteBtn" disabled>
-              <i class="bi bi-trash me-1"></i>ลบที่เลือก (<span id="catSelectedCount">0</span>)
-            </button>
-          </div>
-
-          <div style="max-height:300px;overflow-y:auto">
-            {% for cat in categories %}
-            <div class="d-flex align-items-center gap-2 py-1 border-bottom">
-              <input class="form-check-input cat-check" type="checkbox"
-                     name="ids" value="{{ cat.id }}" onchange="updateCatSelected()">
-              <span class="small flex-grow-1">
-                <i class="bi bi-tag me-1 text-muted"></i>{{ cat.name }}
-              </span>
-            </div>
-            {% endfor %}
-          </div>
-        </form>
+<!-- Offcanvas: จัดการหมวดหมู่ -->
+<div class="offcanvas offcanvas-end" tabindex="-1" id="catOffcanvas" style="width:320px">
+  <div class="offcanvas-header border-bottom">
+    <h6 class="offcanvas-title fw-semibold">
+      <i class="bi bi-tags me-2 text-primary"></i>จัดการหมวดหมู่
+    </h6>
+    <button type="button" class="btn-close" data-bs-dismiss="offcanvas"></button>
+  </div>
+  <div class="offcanvas-body">
+    <form method="POST" action="{{ url_for('category_list') }}" class="mb-3">
+      <div class="input-group">
+        <input type="text" name="name" class="form-control form-control-sm"
+               placeholder="ชื่อหมวดหมู่ใหม่..." required>
+        <button type="submit" class="btn btn-primary btn-sm">
+          <i class="bi bi-plus-lg"></i>
+        </button>
       </div>
-    </div>
+    </form>
+
+    <form method="POST" action="{{ url_for('delete_categories_bulk') }}" id="bulkCatForm"
+          onsubmit="return confirmBulk()">
+      <div class="d-flex align-items-center justify-content-between mb-2">
+        <div class="form-check mb-0">
+          <input class="form-check-input" type="checkbox" id="selectAllCats"
+                 onchange="toggleAllCats(this)">
+          <label class="form-check-label small text-muted" for="selectAllCats">เลือกทั้งหมด</label>
+        </div>
+        <button type="submit" class="btn btn-xs btn-danger" id="bulkDeleteBtn" disabled>
+          <i class="bi bi-trash me-1"></i>ลบที่เลือก (<span id="catSelectedCount">0</span>)
+        </button>
+      </div>
+      <div>
+        {% for cat in categories %}
+        <div class="d-flex align-items-center gap-2 py-1 border-bottom">
+          <input class="form-check-input cat-check" type="checkbox"
+                 name="ids" value="{{ cat.id }}" onchange="updateCatSelected()">
+          <span class="small flex-grow-1">
+            <i class="bi bi-tag me-1 text-muted"></i>{{ cat.name }}
+          </span>
+        </div>
+        {% endfor %}
+      </div>
+    </form>
   </div>
 </div>
 {% endblock %}
