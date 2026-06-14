@@ -67,6 +67,7 @@
                 <div class="serial-grid-header" id="serialGridHeader">
                   <div class="sg-num">#</div>
                   <div class="sg-serial">Serial Number</div>
+                  <div class="sg-qty">จำนวน</div>
                   <div class="sg-brand">Brand</div>
                   <div class="sg-model">Model</div>
                   <div class="sg-desc">หมายเหตุ</div>
@@ -80,6 +81,10 @@
                     <div class="sg-serial">
                       <input type="text" name="serial_number" class="form-control form-control-sm"
                              placeholder="เช่น SN-001">
+                    </div>
+                    <div class="sg-qty">
+                      <input type="number" name="serial_qty" class="form-control form-control-sm"
+                             value="1" min="1" max="999">
                     </div>
                     <div class="sg-brand">
                       <input type="text" name="brand" class="form-control form-control-sm"
@@ -284,7 +289,7 @@ function makeCustomCell(id, name) {
 
 function updateGridTemplate() {
   const customPart = activeCols.map(() => '130px').join(' ');
-  const tpl = ['32px','1fr','110px','110px','130px', customPart, '38px'].filter(s=>s).join(' ');
+  const tpl = ['32px','1fr','70px','110px','110px','130px', customPart, '38px'].filter(s=>s).join(' ');
   document.getElementById('serialContainer').style.setProperty('--sgrid', tpl);
 }
 
@@ -308,6 +313,9 @@ function addSerial() {
     <div class="sg-num"><span class="serial-num badge bg-secondary">${num}</span></div>
     <div class="sg-serial">
       <input type="text" name="serial_number" class="form-control form-control-sm" placeholder="เช่น SN-00${num}">
+    </div>
+    <div class="sg-qty">
+      <input type="number" name="serial_qty" class="form-control form-control-sm" value="1" min="1" max="999">
     </div>
     <div class="sg-brand">
       <input type="text" name="brand" class="form-control form-control-sm" placeholder="Brand" value="${escH(defBrand)}">

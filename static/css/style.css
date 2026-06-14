@@ -467,7 +467,7 @@ body {
 .sidebar-footer .user-info:hover { background: rgba(255,255,255,0.07); }
 
 /* ── SERIAL GRID (add equipment form) ─────────────────────────────────────── */
-#serialContainer { --sgrid: 32px 1fr 110px 110px 130px 38px; }
+#serialContainer { --sgrid: 32px 1fr 70px 110px 110px 130px 38px; }
 
 .serial-grid-header, .serial-grid-row {
   display: grid;
@@ -493,7 +493,8 @@ body {
 }
 .serial-grid-row:last-child { border-radius: 0 0 8px 8px; }
 .serial-grid-row:hover { background: #f8fafc; }
-.sg-num, .sg-action { display: flex; align-items: center; justify-content: center; }
+.sg-num, .sg-action, .sg-qty { display: flex; align-items: center; justify-content: center; }
+.sg-qty input { width: 62px; text-align: center; }
 .sg-custom { display: flex; align-items: center; min-width: 0; overflow: hidden; }
 .sg-custom input { min-width: 0; }
 
@@ -511,7 +512,7 @@ body {
   .sg-num    { grid-column: 1; grid-row: 1; }
   .sg-serial { grid-column: 2; grid-row: 1; }
   .sg-action { grid-column: 3; grid-row: 1; }
-  .sg-brand, .sg-model, .sg-desc, .sg-custom { grid-column: 1 / 4; }
+  .sg-brand, .sg-model, .sg-desc, .sg-qty, .sg-custom { grid-column: 1 / 4; }
 }
 
 /* ── RESPONSIVE TWEAKS ─────────────────────────────────────────────────────── */
