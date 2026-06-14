@@ -17,8 +17,8 @@
   <div class="col-12 col-lg-7 mx-auto">
     <!-- Equipment Image -->
     {% if eq.image and eq.image.startswith('data:') %}
-    <div class="card shadow-sm mb-3 overflow-hidden">
-      <img src="{{ eq.image }}" class="w-100" style="max-height:220px;object-fit:cover" alt="{{ eq.name }}">
+    <div class="card shadow-sm mb-3 text-center p-2">
+      <img src="{{ eq.image }}" class="img-fluid rounded" style="max-height:360px;object-fit:contain" alt="{{ eq.name }}">
     </div>
     {% endif %}
 
