@@ -53,10 +53,9 @@
               <label class="form-label fw-semibold">
                 <i class="bi bi-image me-1 text-primary"></i>รูปภาพอุปกรณ์
               </label>
-              {% if eq.image %}
+              {% if eq.image and eq.image.startswith('data:') %}
               <div class="mb-2">
-                <img src="{{ eq.image if eq.image.startswith('data:') else url_for('uploaded_file', filename=eq.image) }}"
-                     class="img-thumbnail" style="max-height:120px">
+                <img src="{{ eq.image }}" class="img-thumbnail" style="max-height:120px">
                 <div class="text-muted small mt-1">รูปปัจจุบัน — อัพโหลดใหม่เพื่อเปลี่ยน</div>
               </div>
               {% endif %}

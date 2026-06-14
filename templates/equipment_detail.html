@@ -16,10 +16,9 @@
   <!-- DETAIL -->
   <div class="col-12 col-lg-7 mx-auto">
     <!-- Equipment Image -->
-    {% if eq.image %}
+    {% if eq.image and eq.image.startswith('data:') %}
     <div class="card shadow-sm mb-3 overflow-hidden">
-      <img src="{{ eq.image if eq.image.startswith('data:') else url_for('uploaded_file', filename=eq.image) }}"
-           class="w-100" style="max-height:220px;object-fit:cover" alt="{{ eq.name }}">
+      <img src="{{ eq.image }}" class="w-100" style="max-height:220px;object-fit:cover" alt="{{ eq.name }}">
     </div>
     {% endif %}
 
