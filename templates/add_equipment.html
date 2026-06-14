@@ -108,10 +108,23 @@
                 <i class="bi bi-image me-1 text-primary"></i>รูปภาพ
                 <span class="text-muted fw-normal">(ไม่บังคับ)</span>
               </label>
-              <input type="file" name="image" id="imageInput" class="form-control"
+              <div id="pasteZone"
+                   class="border rounded p-3 text-center text-muted small"
+                   style="border-style:dashed!important;cursor:pointer;min-height:72px;display:flex;align-items:center;justify-content:center;gap:8px;flex-direction:column"
+                   onclick="document.getElementById('imageInput').click()"
+                   ondragover="event.preventDefault()"
+                   ondrop="handleDrop(event)">
+                <i class="bi bi-clipboard-image fs-4"></i>
+                <span>วางรูปด้วย <kbd>Ctrl+V</kbd> · ลากวาง · หรือ<span class="text-primary"> คลิกเพื่อเลือกไฟล์</span></span>
+              </div>
+              <input type="file" name="image" id="imageInput" class="d-none"
                      accept="image/*" onchange="previewImage(this)">
-              <div id="imagePreview" class="mt-2 d-none">
+              <div id="imagePreview" class="mt-2 d-none position-relative">
                 <img id="previewImg" src="#" class="img-thumbnail" style="max-height:150px">
+                <button type="button" onclick="clearImage()"
+                        class="btn btn-sm btn-danger position-absolute top-0 start-0 m-1">
+                  <i class="bi bi-x-lg"></i>
+                </button>
               </div>
             </div>
 
@@ -320,14 +333,51 @@ function updateSerialRows() {
   });
 }
 
-function previewImage(input) {
-  const preview = document.getElementById('imagePreview');
-  const img     = document.getElementById('previewImg');
-  if (input.files && input.files[0]) {
-    const reader = new FileReader();
-    reader.onload = e => { img.src = e.target.result; preview.classList.remove('d-none'); };
-    reader.readAsDataURL(input.files[0]);
-  }
+function showImageFile(file) {
+  if (!file || !file.type.startsWith('image/')) return;
+  // Inject file into the hidden input via DataTransfer
+  const dt = new DataTransfer();
+  dt.items.add(file);
+  const inp = document.getElementById('imageInput');
+  inp.files = dt.files;
+
+  const reader = new FileReader();
+  reader.onload = e => {
+    document.getElementById('previewImg').src = e.target.result;
+    document.getElementById('imagePreview').classList.remove('d-none');
+    document.getElementById('pasteZone').classList.add('d-none');
+  };
+  reader.readAsDataURL(file);
 }
+
+function previewImage(input) {
+  if (input.files && input.files[0]) showImageFile(input.files[0]);
+}
+
+function handleDrop(e) {
+  e.preventDefault();
+  const file = e.dataTransfer.files[0];
+  if (file) showImageFile(file);
+}
+
+function clearImage() {
+  document.getElementById('imageInput').value = '';
+  document.getElementById('imagePreview').classList.add('d-none');
+  document.getElementById('previewImg').src = '#';
+  document.getElementById('pasteZone').classList.remove('d-none');
+}
+
+// Global paste listener
+document.addEventListener('paste', e => {
+  const items = e.clipboardData && e.clipboardData.items;
+  if (!items) return;
+  for (const item of items) {
+    if (item.type.startsWith('image/')) {
+      e.preventDefault();
+      showImageFile(item.getAsFile());
+      break;
+    }
+  }
+});
 </script>
 {% endblock %}
