@@ -9,13 +9,6 @@
   <h4 class="mb-0 fw-bold"><i class="bi bi-plus-circle me-2 text-primary"></i>เพิ่มอุปกรณ์ใหม่</h4>
 </div>
 
-{% if last_add %}
-<div class="alert alert-success alert-dismissible fade show py-2 px-3" role="alert">
-  <i class="bi bi-check-circle me-2"></i>เพิ่ม <strong>{{ last_add.name }}</strong> สำเร็จ
-  {% if last_skipped %} · Serial ซ้ำ ข้ามไป: {{ last_skipped|join(', ') }}{% endif %}
-  <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-</div>
-{% endif %}
 
 <div class="row g-3">
   <!-- ฟอร์มเพิ่มอุปกรณ์ -->
@@ -79,7 +72,6 @@
                 <div class="serial-grid-header" id="serialGridHeader">
                   <div class="sg-num">#</div>
                   <div class="sg-serial">Serial Number</div>
-                  <div class="sg-qty">จำนวน</div>
                   <div class="sg-brand">Brand</div>
                   <div class="sg-model">Model</div>
                   <div class="sg-desc">หมายเหตุ</div>
@@ -93,10 +85,6 @@
                     <div class="sg-serial">
                       <input type="text" name="serial_number" class="form-control form-control-sm"
                              placeholder="เช่น SN-001">
-                    </div>
-                    <div class="sg-qty">
-                      <input type="number" name="serial_qty" class="form-control form-control-sm"
-                             value="1" min="1" max="999">
                     </div>
                     <div class="sg-brand">
                       <input type="text" name="brand" class="form-control form-control-sm"
@@ -119,9 +107,19 @@
                   </div>
                 </div>
               </div>
-              <button type="button" class="btn btn-outline-primary btn-sm w-100 mt-1" onclick="addSerial()">
-                <i class="bi bi-plus-lg me-1"></i>เพิ่มรายการ
-              </button>
+              <div class="d-flex gap-2 mt-1">
+                <button type="button" class="btn btn-outline-primary btn-sm flex-grow-1" onclick="addSerial()">
+                  <i class="bi bi-plus-lg me-1"></i>เพิ่มรายการ
+                </button>
+                <div class="input-group input-group-sm" style="max-width:160px">
+                  <input type="number" id="bulkQty" class="form-control" placeholder="จำนวน" min="1" max="999"
+                         onkeydown="if(event.key==='Enter'){event.preventDefault();addBulkRows()}">
+                  <button type="button" class="btn btn-outline-secondary" onclick="addBulkRows()"
+                          title="สร้างแถวตามจำนวนที่กำหนด">
+                    <i class="bi bi-collection me-1"></i>สร้างแถว
+                  </button>
+                </div>
+              </div>
               <input type="hidden" id="customColDefs" name="custom_col_defs" value="[]">
             </div>
 
@@ -301,7 +299,7 @@ function makeCustomCell(id, name) {
 
 function updateGridTemplate() {
   const customPart = activeCols.map(() => '130px').join(' ');
-  const tpl = ['32px','1fr','70px','110px','110px','130px', customPart, '38px'].filter(s=>s).join(' ');
+  const tpl = ['32px','1fr','110px','110px','130px', customPart, '38px'].filter(s=>s).join(' ');
   document.getElementById('serialContainer').style.setProperty('--sgrid', tpl);
 }
 
@@ -326,9 +324,6 @@ function addSerial() {
     <div class="sg-serial">
       <input type="text" name="serial_number" class="form-control form-control-sm" placeholder="เช่น SN-00${num}">
     </div>
-    <div class="sg-qty">
-      <input type="number" name="serial_qty" class="form-control form-control-sm" value="1" min="1" max="999">
-    </div>
     <div class="sg-brand">
       <input type="text" name="brand" class="form-control form-control-sm" placeholder="Brand" value="${escH(defBrand)}">
     </div>
@@ -350,6 +345,15 @@ function addSerial() {
   const sn = div.querySelector('[name="serial_number"]');
   sn.focus();
   sn.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+function addBulkRows() {
+  const input = document.getElementById('bulkQty');
+  const n = parseInt(input.value);
+  if (!n || n < 1) { input.focus(); return; }
+  for (let i = 0; i < n; i++) addSerial();
+  input.value = '';
+  input.focus();
 }
 
 function removeSerial(btn) {

@@ -425,7 +425,6 @@ def add_equipment():
         brands   = request.form.getlist('brand')
         models   = request.form.getlist('model')
         descs    = request.form.getlist('serial_desc')
-        qtys     = request.form.getlist('serial_qty')
 
         # Custom columns
         try:
@@ -439,16 +438,11 @@ def add_equipment():
         brands = (brands + [''] * n)[:n]
         models = (models + [''] * n)[:n]
         descs  = (descs  + [''] * n)[:n]
-        qtys   = (qtys   + ['1'] * n)[:n]
 
-        # Build entries with custom fields, expand by quantity
+        # Build entries, skip completely blank rows
         entries = []
-        for i, (s, b, m, d, q) in enumerate(zip(serials, brands, models, descs, qtys)):
+        for i, (s, b, m, d) in enumerate(zip(serials, brands, models, descs)):
             s, b, m, d = s.strip(), b.strip(), m.strip(), d.strip()
-            try:
-                qty = max(1, min(int(q), 999))
-            except (ValueError, TypeError):
-                qty = 1
             custom = {}
             for col in col_defs:
                 vals = cf_lists.get(col['id'], [])
@@ -457,13 +451,8 @@ def add_equipment():
                     custom[col['name']] = v
             if not (s or b or m or d or custom):
                 continue
-            custom_json = json.dumps(custom, ensure_ascii=False) if custom else None
-            if qty == 1:
-                entries.append((s or None, b or None, m or None, d or None, custom_json))
-            else:
-                for n2 in range(1, qty + 1):
-                    sn = f'{s}-{n2}' if s else None
-                    entries.append((sn, b or None, m or None, d or None, custom_json))
+            entries.append((s or None, b or None, m or None, d or None,
+                            json.dumps(custom, ensure_ascii=False) if custom else None))
         if not entries:
             entries = [(None, None, None, None, None)]
 
@@ -493,20 +482,13 @@ def add_equipment():
                     conn.rollback()
                     skipped.append(serial or '(ไม่มี Serial)')
 
-            if added:
-                session['last_add'] = {'name': name, 'category': category}
-            if skipped:
-                session['last_add_skipped'] = skipped
             return redirect(url_for('add_equipment'))
         finally:
             conn.close()
     conn = get_db()
     categories = db_fetchall(conn, 'SELECT id, name FROM categories ORDER BY name')
     conn.close()
-    last_add     = session.pop('last_add', None)
-    last_skipped = session.pop('last_add_skipped', None)
-    return render_template('add_equipment.html', categories=categories,
-                           last_add=last_add, last_skipped=last_skipped)
+    return render_template('add_equipment.html', categories=categories)
 
 
 @app.route('/equipment/<int:eid>')
