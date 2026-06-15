@@ -494,16 +494,19 @@ def add_equipment():
                     skipped.append(serial or '(ไม่มี Serial)')
 
             if added:
-                flash(f'เพิ่มอุปกรณ์สำเร็จ {added} รายการ', 'success')
+                session['last_add'] = {'name': name, 'category': category}
             if skipped:
-                flash(f'Serial Number ซ้ำ ข้ามไป: {", ".join(skipped)}', 'warning')
+                session['last_add_skipped'] = skipped
             return redirect(url_for('add_equipment'))
         finally:
             conn.close()
     conn = get_db()
     categories = db_fetchall(conn, 'SELECT id, name FROM categories ORDER BY name')
     conn.close()
-    return render_template('add_equipment.html', categories=categories)
+    last_add     = session.pop('last_add', None)
+    last_skipped = session.pop('last_add_skipped', None)
+    return render_template('add_equipment.html', categories=categories,
+                           last_add=last_add, last_skipped=last_skipped)
 
 
 @app.route('/equipment/<int:eid>')

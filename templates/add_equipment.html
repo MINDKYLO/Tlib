@@ -9,6 +9,14 @@
   <h4 class="mb-0 fw-bold"><i class="bi bi-plus-circle me-2 text-primary"></i>เพิ่มอุปกรณ์ใหม่</h4>
 </div>
 
+{% if last_add %}
+<div class="alert alert-success alert-dismissible fade show py-2 px-3" role="alert">
+  <i class="bi bi-check-circle me-2"></i>เพิ่ม <strong>{{ last_add.name }}</strong> สำเร็จ
+  {% if last_skipped %} · Serial ซ้ำ ข้ามไป: {{ last_skipped|join(', ') }}{% endif %}
+  <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+{% endif %}
+
 <div class="row g-3">
   <!-- ฟอร์มเพิ่มอุปกรณ์ -->
   <div class="col-12">
@@ -20,7 +28,8 @@
             <div class="col-12">
               <label class="form-label fw-semibold">ชื่ออุปกรณ์ <span class="text-danger">*</span></label>
               <input type="text" name="name" class="form-control"
-                     placeholder="เช่น MacBook Pro 14 inch" required>
+                     placeholder="เช่น MacBook Pro 14 inch" required
+                     value="{{ last_add.name if last_add else '' }}">
             </div>
 
             <div class="col-md-6">
@@ -29,7 +38,10 @@
                 <select name="category" class="form-select" required>
                   <option value="">-- เลือกหมวดหมู่ --</option>
                   {% for cat in categories %}
-                  <option value="{{ cat.name }}">{{ cat.name }}</option>
+                  <option value="{{ cat.name }}"
+                    {% if last_add and last_add.category == cat.name %}selected{% endif %}>
+                    {{ cat.name }}
+                  </option>
                   {% endfor %}
                 </select>
                 <button type="button" class="btn btn-outline-secondary btn-sm text-nowrap"
