@@ -449,8 +449,6 @@ def add_equipment():
                 v = vals[i].strip() if i < len(vals) else ''
                 if v:
                     custom[col['name']] = v
-            if not (s or b or m or d or custom):
-                continue
             entries.append((s or None, b or None, m or None, d or None,
                             json.dumps(custom, ensure_ascii=False) if custom else None))
         if not entries:
