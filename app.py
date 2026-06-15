@@ -928,14 +928,15 @@ def email_settings_page():
                                 smtp_password=%s, smtp_from=%s, enabled=%s WHERE id=%s''',
                        (host, port, user, password, from_, enabled, cfg['id']))
             conn.commit()
-            flash('บันทึกการตั้งค่า Email สำเร็จ', 'success')
+            conn.close()
+            return redirect(url_for('email_settings_page', saved='1'))
 
         elif action == 'test':
             test_to = request.form.get('test_email', '')
             ok = send_email(test_to, '[IT Borrow] ทดสอบการส่ง Email',
                             '<p>ระบบส่ง Email ทำงานปกติ &#x2705;</p>')
-            flash('ส่ง Email ทดสอบสำเร็จ' if ok else 'ส่งไม่สำเร็จ กรุณาตรวจสอบการตั้งค่า',
-                  'success' if ok else 'danger')
+            conn.close()
+            return redirect(url_for('email_settings_page', test_ok='1' if ok else '0'))
 
         elif action == 'send_overdue':
             overdue = db_fetchall(conn, '''
@@ -945,9 +946,11 @@ def email_settings_page():
                 JOIN users u ON b.user_id=u.id
                 WHERE b.status='borrowed' AND b.due_date IS NOT NULL AND b.due_date <= CURRENT_DATE
             ''')
-            sent = sum(1 for b in overdue
-                       if email_overdue(b['user_email'], b['user_name'], b['eq_name'], b['due_date']))
-            flash(f'ส่ง Email แจ้งเตือนเกินกำหนด {sent}/{len(overdue)} รายการ', 'success')
+            total = len(overdue)
+            sent  = sum(1 for b in overdue
+                        if email_overdue(b['user_email'], b['user_name'], b['eq_name'], b['due_date']))
+            conn.close()
+            return redirect(url_for('email_settings_page', overdue_sent=sent, overdue_total=total))
 
         conn.close()
         return redirect(url_for('email_settings_page'))

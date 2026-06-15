@@ -63,6 +63,11 @@
                    value="{{ cfg.smtp_from or '' }}" placeholder="IT Borrow &lt;noreply@company.com&gt;">
           </div>
 
+          {% if request.args.get('saved') == '1' %}
+          <div class="alert alert-success py-2 small mb-2">
+            <i class="bi bi-check-circle me-1"></i>บันทึกการตั้งค่าสำเร็จ
+          </div>
+          {% endif %}
           <button type="submit" class="btn btn-primary w-100">
             <i class="bi bi-save me-1"></i>บันทึกการตั้งค่า
           </button>
@@ -79,6 +84,15 @@
         <i class="bi bi-send me-2 text-success"></i>ทดสอบการส่ง Email
       </div>
       <div class="card-body">
+        {% if request.args.get('test_ok') == '1' %}
+        <div class="alert alert-success py-2 small mb-3">
+          <i class="bi bi-check-circle me-1"></i>ส่ง Email ทดสอบสำเร็จ
+        </div>
+        {% elif request.args.get('test_ok') == '0' %}
+        <div class="alert alert-danger py-2 small mb-3">
+          <i class="bi bi-x-circle me-1"></i>ส่งไม่สำเร็จ — กรุณาตรวจสอบการตั้งค่า SMTP
+        </div>
+        {% endif %}
         <form method="POST" action="{{ url_for('email_settings_page') }}">
           <input type="hidden" name="action" value="test">
           <div class="mb-3">
@@ -106,6 +120,23 @@
         <i class="bi bi-exclamation-triangle me-2 text-danger"></i>ส่ง Email แจ้งเตือนเกินกำหนด
       </div>
       <div class="card-body">
+        {% if request.args.get('overdue_total') is not none %}
+          {% set total = request.args.get('overdue_total')|int %}
+          {% set sent  = request.args.get('overdue_sent')|int %}
+          {% if total == 0 %}
+          <div class="alert alert-warning py-2 small mb-3">
+            <i class="bi bi-info-circle me-1"></i>ไม่มีรายการค้างคืนในระบบ
+          </div>
+          {% elif sent == 0 %}
+          <div class="alert alert-warning py-2 small mb-3">
+            <i class="bi bi-exclamation-circle me-1"></i>มีรายการค้างคืน {{ total }} รายการ แต่ส่งไม่ได้ — ผู้ยืมไม่มี Email ในระบบ
+          </div>
+          {% else %}
+          <div class="alert alert-success py-2 small mb-3">
+            <i class="bi bi-check-circle me-1"></i>ส่ง Email สำเร็จ {{ sent }}/{{ total }} รายการ
+          </div>
+          {% endif %}
+        {% endif %}
         <p class="text-muted small mb-3">
           ส่ง Email แจ้งเตือนไปยังผู้ที่ยืมอุปกรณ์เกินกำหนดคืนทุกราย
           (เฉพาะผู้ที่มีอีเมลในระบบ)
