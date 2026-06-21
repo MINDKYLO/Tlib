@@ -1,11 +1,13 @@
 /* ── VARIABLES ─────────────────────────────────────────────────────────────── */
 :root {
-  --primary: #2563eb;
-  --primary-dark: #1d4ed8;
+  --primary: #e4007f;
+  --primary-dark: #b5006a;
+  --primary-blue: #0ea5e9;
+  --primary-blue-dark: #0284c7;
   --sidebar-w: 240px;
-  --sidebar-bg: #0f172a;
-  --sidebar-text: #94a3b8;
-  --sidebar-active: #2563eb;
+  --sidebar-bg: #1a0a14;
+  --sidebar-text: #c9a8bc;
+  --sidebar-active: #e4007f;
   --bottom-nav-h: 64px;
   --card-radius: 12px;
   --transition: 0.2s ease;
@@ -93,7 +95,7 @@ body {
 .avatar {
   width: 36px; height: 36px;
   border-radius: 50%;
-  background: var(--primary);
+  background: linear-gradient(135deg, #e4007f, #0ea5e9);
   color: #fff;
   display: flex; align-items: center; justify-content: center;
   font-weight: 700; font-size: 0.9rem;
@@ -102,7 +104,7 @@ body {
 .avatar-sm {
   width: 30px; height: 30px;
   border-radius: 50%;
-  background: var(--primary);
+  background: linear-gradient(135deg, #e4007f, #0ea5e9);
   color: #fff;
   display: flex; align-items: center; justify-content: center;
   font-weight: 700; font-size: 0.8rem;
@@ -226,7 +228,7 @@ body {
 }
 .equipment-card:hover {
   border-color: var(--primary);
-  box-shadow: 0 4px 20px rgba(37,99,235,0.1);
+  box-shadow: 0 4px 20px rgba(228,0,127,0.15);
   transform: translateY(-2px);
 }
 .equipment-card.borrowed { border-color: #fbbf24; }
@@ -387,11 +389,11 @@ body {
   text-align: center;
 }
 .quick-action-card:hover {
-  background: #f0f9ff;
+  background: #fff0f7;
   border-color: var(--primary);
   transform: translateY(-2px);
   color: var(--primary);
-  box-shadow: 0 4px 12px rgba(37,99,235,0.1);
+  box-shadow: 0 4px 12px rgba(228,0,127,0.12);
 }
 
 /* ── EMPTY STATE ───────────────────────────────────────────────────────────── */
@@ -409,7 +411,7 @@ body {
 
 /* ── LOGIN PAGE ────────────────────────────────────────────────────────────── */
 .login-page {
-  background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 50%, #1d4ed8 100%);
+  background: linear-gradient(135deg, #1a0a14 0%, #e4007f 50%, #0ea5e9 100%);
   min-height: 100vh;
   display: flex;
   align-items: center;
@@ -450,11 +452,11 @@ body {
 .avatar-lg {
   width: 72px; height: 72px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  background: linear-gradient(135deg, #e4007f, #0ea5e9);
   color: #fff;
   display: flex; align-items: center; justify-content: center;
   font-size: 2rem; font-weight: 700;
-  box-shadow: 0 4px 12px rgba(37,99,235,0.25);
+  box-shadow: 0 4px 12px rgba(228,0,127,0.3);
 }
 
 /* ── USERS NAV ACTIVE FIX ──────────────────────────────────────────────────── */
