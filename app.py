@@ -959,24 +959,6 @@ def email_settings_page():
     return render_template('email_settings.html', cfg=cfg)
 
 
-# ── SCAN QR ────────────────────────────────────────────────────────────────────
-
-@app.route('/scan')
-@login_required
-def scan_qr():
-    return render_template('scan_qr.html')
-
-
-@app.route('/api/equipment/<int:eid>/qr')
-@login_required
-def api_qr(eid):
-    conn = get_db()
-    eq   = db_fetchone(conn, 'SELECT * FROM equipment WHERE id=%s', (eid,))
-    conn.close()
-    if not eq:
-        return jsonify({'error': 'not found'}), 404
-    qr_data = f"ID:{eid}|ชื่อ:{eq['name']}|Serial:{eq['serial_number']}|หมวด:{eq['category']}"
-    return jsonify({'qr': generate_qr(qr_data), 'equipment': eq})
 
 
 # ── OVERDUE MANAGEMENT ─────────────────────────────────────────────────────────

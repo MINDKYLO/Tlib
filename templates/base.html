@@ -30,11 +30,6 @@
        class="nav-link {% if request.endpoint == 'history' %}active{% endif %}">
       <i class="bi bi-clock-history"></i><span>ประวัติการยืม</span>
     </a>
-    <a href="{{ url_for('scan_qr') }}"
-       class="nav-link {% if request.endpoint == 'scan_qr' %}active{% endif %}">
-      <i class="bi bi-qr-code-scan"></i><span>สแกน QR Code</span>
-    </a>
-
     {% if session.role == 'admin' %}
     <div class="nav-section">ผู้ดูแลระบบ</div>
     <a href="{{ url_for('add_equipment') }}"
@@ -109,10 +104,6 @@
   <a href="{{ url_for('equipment_list') }}"
      class="bottom-nav-item {% if 'equipment' in (request.endpoint or '') %}active{% endif %}">
     <i class="bi bi-laptop"></i><span>อุปกรณ์</span>
-  </a>
-  <a href="{{ url_for('scan_qr') }}"
-     class="bottom-nav-item {% if request.endpoint == 'scan_qr' %}active{% endif %}">
-    <i class="bi bi-qr-code-scan"></i><span>สแกน QR</span>
   </a>
   <a href="{{ url_for('history') }}"
      class="bottom-nav-item {% if request.endpoint == 'history' %}active{% endif %}">
