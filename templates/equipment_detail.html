@@ -98,20 +98,6 @@
       </div>
     </div>
 
-    <!-- QR CODE -->
-    <div class="card shadow-sm">
-      <div class="card-header fw-semibold">
-        <i class="bi bi-qr-code me-2 text-primary"></i>QR Code
-      </div>
-      <div class="card-body text-center">
-        <img src="data:image/png;base64,{{ qr_image }}"
-             class="qr-img img-fluid mb-3" id="qrImg" alt="QR Code">
-        <div class="small text-muted mb-2">สแกนเพื่อดูข้อมูลอุปกรณ์</div>
-        <button class="btn btn-sm btn-outline-primary w-100" onclick="downloadQR()">
-          <i class="bi bi-download me-1"></i>ดาวน์โหลด QR Code
-        </button>
-      </div>
-    </div>
   </div>
 </div>
 
@@ -154,13 +140,4 @@
 {% endif %}
 {% endblock %}
 
-{% block scripts %}
-<script>
-function downloadQR() {
-  const a = document.createElement('a');
-  a.href = document.getElementById('qrImg').src;
-  a.download = 'QR_{{ eq.name }}.png';
-  a.click();
-}
-</script>
 {% endblock %}

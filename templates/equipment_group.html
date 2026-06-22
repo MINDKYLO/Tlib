@@ -124,8 +124,8 @@
                       {% endif %}
                     {% endif %}
                     <a href="{{ url_for('equipment_detail', eid=item.id) }}"
-                       class="btn btn-xs btn-outline-secondary" title="QR Code / รายละเอียด">
-                      <i class="bi bi-qr-code"></i>
+                       class="btn btn-xs btn-outline-secondary" title="รายละเอียด">
+                      <i class="bi bi-info-circle"></i>
                     </a>
                     {% if session.role == 'admin' %}
                     <a href="{{ url_for('edit_equipment', eid=item.id) }}"

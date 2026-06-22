@@ -1,7 +1,7 @@
 from flask import (Flask, render_template, request, redirect, url_for,
                    session, flash, jsonify, Response, send_from_directory)
 import psycopg2, psycopg2.extras
-import qrcode, io, base64, csv, os, smtplib, hashlib, json
+import io, base64, csv, os, smtplib, hashlib, json
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from datetime import datetime, date
@@ -235,17 +235,6 @@ def email_overdue(user_email, user_name, eq_name, due_date):
     </div>"""
     return send_email(user_email, f'[IT Borrow] &#x26A0;&#xFE0F; เกินกำหนดคืน: {eq_name}', html)
 
-
-# ── QR ─────────────────────────────────────────────────────────────────────────
-
-def generate_qr(data):
-    qr = qrcode.QRCode(version=1, box_size=8, border=4)
-    qr.add_data(data)
-    qr.make(fit=True)
-    img = qr.make_image(fill_color='black', back_color='white')
-    buf = io.BytesIO()
-    img.save(buf, format='PNG')
-    return base64.b64encode(buf.getvalue()).decode()
 
 
 def allowed_file(filename):
@@ -508,12 +497,9 @@ def equipment_detail(eid):
         FROM borrows b JOIN users u ON b.user_id=u.id
         WHERE b.equipment_id=%s AND b.status='borrowed'
     ''', (eid,))
-    qr_data  = f"ID:{eid}|ชื่อ:{eq['name']}|Serial:{eq['serial_number']}|หมวด:{eq['category']}"
-    qr_image = generate_qr(qr_data)
     conn.close()
     return render_template('equipment_detail.html',
-                           eq=eq, history=history, current_borrow=current_borrow,
-                           qr_image=qr_image)
+                           eq=eq, history=history, current_borrow=current_borrow)
 
 
 @app.route('/equipment/<int:eid>/edit', methods=['GET', 'POST'])
