@@ -109,7 +109,7 @@
         <h5 class="modal-title"><i class="bi bi-arrow-right-circle me-2 text-primary"></i>ยืมอุปกรณ์</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
-      <form method="POST" action="{{ url_for('borrow', eid=eq.id) }}">
+      <form method="POST" action="{{ url_for('borrow', eid=eq.id) }}" id="borrowForm">
         <div class="modal-body">
           <div class="borrow-summary mb-3">
             <div>
@@ -119,7 +119,8 @@
           </div>
           <div class="mb-3">
             <label class="form-label fw-semibold small">วันที่ต้องคืน <span class="text-danger">*</span></label>
-            <input type="date" name="due_date" class="form-control form-control-sm" required>
+            <input type="date" name="due_date" id="dueDateInput" class="form-control form-control-sm" required>
+            <div id="dueDateError" class="text-danger small mt-1" style="display:none;">กรุณาเลือกวันที่ต้องคืน</div>
           </div>
           <div class="mb-2">
             <label class="form-label fw-semibold small">หมายเหตุ</label>
@@ -129,7 +130,7 @@
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">ยกเลิก</button>
-          <button type="submit" class="btn btn-primary">
+          <button type="button" class="btn btn-primary" onclick="submitBorrow()">
             <i class="bi bi-check-lg me-1"></i>ยืนยันการยืม
           </button>
         </div>
@@ -138,4 +139,21 @@
   </div>
 </div>
 {% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+function submitBorrow() {
+  const due = document.getElementById('dueDateInput');
+  const err = document.getElementById('dueDateError');
+  if (!due.value) {
+    due.classList.add('is-invalid');
+    err.style.display = 'block';
+    return;
+  }
+  due.classList.remove('is-invalid');
+  err.style.display = 'none';
+  document.getElementById('borrowForm').submit();
+}
+</script>
 {% endblock %}
