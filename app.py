@@ -786,8 +786,10 @@ def add_user():
         username   = request.form['username']
         password   = hashlib.sha256(request.form['password'].encode()).hexdigest()
         name       = request.form['name'];       role       = request.form['role']
-        department = request.form['department']; email      = request.form.get('email', '')
-        phone      = request.form.get('phone', ''); id_number = request.form.get('id_number', '')
+        department = request.form['department']; email      = request.form.get('email', '').strip()
+        phone      = request.form.get('phone', '').strip(); id_number = request.form.get('id_number', '')
+        if not email or not phone:
+            return render_template('add_user.html', error='กรุณากรอกอีเมลและเบอร์โทรศัพท์')
         conn = get_db()
         try:
             db_execute(conn, '''INSERT INTO users
