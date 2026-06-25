@@ -604,6 +604,9 @@ def borrow(eid):
         conn.close()
         return redirect(url_for('equipment_list'))
     due_date = request.form.get('due_date') or None
+    if not due_date:
+        conn.close()
+        return redirect(url_for('equipment_detail', eid=eid))
     notes    = request.form.get('notes', '')
     db_execute(conn, 'INSERT INTO borrows (equipment_id, user_id, due_date, notes) VALUES (%s,%s,%s,%s)',
                (eid, session['user_id'], due_date, notes))
