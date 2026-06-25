@@ -165,7 +165,7 @@
         </h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
-      <form method="POST" action="{{ url_for('borrow', eid=item.id) }}">
+      <form method="POST" action="{{ url_for('borrow', eid=item.id) }}" id="borrowForm{{ item.id }}">
         <div class="modal-body">
           <div class="borrow-summary mb-3">
             <div>
@@ -180,9 +180,13 @@
           </div>
           <div class="mb-3">
             <label class="form-label fw-semibold small">
-              วันที่ต้องคืน <span class="text-muted fw-normal">(ไม่บังคับ)</span>
+              วันที่ต้องคืน <span class="text-danger">*</span>
             </label>
-            <input type="date" name="due_date" class="form-control form-control-sm">
+            <input type="date" name="due_date" id="dueDate{{ item.id }}"
+                   class="form-control form-control-sm" required>
+            <div id="dueDateErr{{ item.id }}" class="text-danger small mt-1" style="display:none;">
+              กรุณาเลือกวันที่ต้องคืน
+            </div>
           </div>
           <div class="mb-2">
             <label class="form-label fw-semibold small">หมายเหตุ</label>
@@ -192,7 +196,8 @@
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">ยกเลิก</button>
-          <button type="submit" class="btn btn-primary">
+          <button type="button" class="btn btn-primary"
+                  onclick="submitBorrowGroup('{{ item.id }}')">
             <i class="bi bi-check-lg me-1"></i>ยืนยันการยืม
           </button>
         </div>
@@ -203,4 +208,21 @@
 {% endif %}
 {% endfor %}
 
+{% endblock %}
+
+{% block scripts %}
+<script>
+function submitBorrowGroup(id) {
+  const due = document.getElementById('dueDate' + id);
+  const err = document.getElementById('dueDateErr' + id);
+  if (!due.value) {
+    due.classList.add('is-invalid');
+    err.style.display = 'block';
+    return;
+  }
+  due.classList.remove('is-invalid');
+  err.style.display = 'none';
+  document.getElementById('borrowForm' + id).submit();
+}
+</script>
 {% endblock %}
