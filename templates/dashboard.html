@@ -21,7 +21,7 @@
           <span class="fw-semibold small">{{ b.eq_name }}</span>
           <span class="text-muted small ms-2">ผู้ยืม: {{ b.user_name }}</span>
         </div>
-        <span class="badge bg-danger">ครบ {{ b.due_date }}</span>
+        <span class="badge bg-danger">ครบ {{ b.due_date | dmy }}</span>
         {% if b.user_id == session.user_id or session.role == 'admin' %}
         <form method="POST" action="{{ url_for('return_equipment', bid=b.id) }}"
               onsubmit="return confirm('ยืนยันการคืน?')">
@@ -63,9 +63,9 @@
           <div class="flex-grow-1 min-width-0">
             <div class="fw-semibold small text-truncate">{{ b.eq_name }}</div>
             <div class="text-muted" style="font-size:0.75rem">
-              ยื่นคำขอ {{ b.borrow_date[:10] }}
+              ยื่นคำขอ {{ b.borrow_date | dmy }}
               {% if b.due_date %}
-                &nbsp;|&nbsp;<span class="text-warning">วันที่ต้องคืน {{ b.due_date }}</span>
+                &nbsp;|&nbsp;<span class="text-warning">วันที่ต้องคืน {{ b.due_date | dmy }}</span>
               {% endif %}
             </div>
           </div>
@@ -106,11 +106,11 @@
             <div class="flex-grow-1 min-width-0">
               <div class="fw-semibold small text-truncate">{{ b.eq_name }}</div>
               <div class="text-muted" style="font-size:0.75rem">
-                ยืม {{ b.borrow_date[:10] }}
+                ยืม {{ b.borrow_date | dmy }}
                 {% if b.due_date %}
                   &nbsp;|&nbsp;
                   <span class="{% if is_overdue %}text-danger fw-bold{% else %}text-warning{% endif %}">
-                    วันที่ต้องคืน {{ b.due_date }}
+                    วันที่ต้องคืน {{ b.due_date | dmy }}
                   </span>
                 {% endif %}
               </div>

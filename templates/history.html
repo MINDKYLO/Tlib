@@ -67,18 +67,18 @@
               <div class="text-muted" style="font-size:0.7rem">{{ b.department }}</div>
               {% endif %}
             </td>
-            <td class="small">{{ b.borrow_date[:10] }}</td>
+            <td class="small">{{ b.borrow_date | dmy }}</td>
             <td class="small">
               {% if b.due_date %}
                 <span class="{% if is_overdue %}text-danger fw-bold{% elif b.status == 'borrowed' %}text-warning fw-semibold{% else %}text-muted{% endif %}">
                   {% if is_overdue %}<i class="bi bi-exclamation-circle me-1"></i>{% endif %}
-                  {{ b.due_date }}
+                  {{ b.due_date | dmy }}
                 </span>
               {% else %}
                 <span class="text-muted">-</span>
               {% endif %}
             </td>
-            <td class="small">{{ b.return_date[:10] if b.return_date else '-' }}</td>
+            <td class="small">{{ b.return_date | dmy if b.return_date else '-' }}</td>
             <td>
               {% if b.status == 'pending' %}
                 <span class="badge bg-warning text-dark">รอการอนุมัติ</span>

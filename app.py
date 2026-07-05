@@ -13,6 +13,17 @@ from openpyxl.utils import get_column_letter
 
 app = Flask(__name__)
 app.secret_key = 'it-equipment-secret-key-2024'
+
+
+@app.template_filter('dmy')
+def dmy_filter(value):
+    if not value:
+        return '-'
+    try:
+        y, m, d = str(value)[:10].split('-')
+        return f"{d}/{m}/{y}"
+    except Exception:
+        return str(value)
 ALLOWED = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
 
 _ON_VERCEL    = os.environ.get('VERCEL') or not os.access('.', os.W_OK)

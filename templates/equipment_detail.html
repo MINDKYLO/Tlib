@@ -64,8 +64,8 @@
           <div class="fw-semibold small mb-1">
             <i class="bi bi-hourglass-split me-1"></i>รอการอนุมัติ: {{ current_borrow.user_name }}
           </div>
-          <div class="small text-muted">ยื่นคำขอ {{ current_borrow.borrow_date[:10] }}
-            {% if current_borrow.due_date %}| วันที่ต้องคืน {{ current_borrow.due_date }}{% endif %}</div>
+          <div class="small text-muted">ยื่นคำขอ {{ current_borrow.borrow_date | dmy }}
+            {% if current_borrow.due_date %}| วันที่ต้องคืน {{ current_borrow.due_date | dmy }}{% endif %}</div>
           {% if session.role == 'admin' %}
           <div class="d-flex gap-2 mt-2">
             <form method="POST" action="{{ url_for('approve_borrow', bid=current_borrow.id) }}"
@@ -88,8 +88,8 @@
           <div class="fw-semibold small mb-1">
             <i class="bi bi-person-fill me-1"></i>ผู้ยืมปัจจุบัน: {{ current_borrow.user_name }}
           </div>
-          <div class="small text-muted">ยืม {{ current_borrow.borrow_date[:10] }}
-            {% if current_borrow.due_date %}| วันที่ต้องคืน {{ current_borrow.due_date }}{% endif %}</div>
+          <div class="small text-muted">ยืม {{ current_borrow.borrow_date | dmy }}
+            {% if current_borrow.due_date %}| วันที่ต้องคืน {{ current_borrow.due_date | dmy }}{% endif %}</div>
           {% if current_borrow.user_id == session.user_id or session.role == 'admin' %}
           <form method="POST" action="{{ url_for('return_equipment', bid=current_borrow.id) }}"
                 class="mt-2" onsubmit="return confirm('ยืนยันการคืนอุปกรณ์?')">

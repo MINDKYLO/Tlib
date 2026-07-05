@@ -61,8 +61,8 @@
               <div><i class="bi bi-envelope-fill text-primary me-1"></i>{{ r.user_email }}</div>
               {% endif %}
             </td>
-            <td class="small">{{ r.borrow_date[:10] }}</td>
-            <td class="small fw-semibold text-warning">{{ r.due_date or '-' }}</td>
+            <td class="small">{{ r.borrow_date | dmy }}</td>
+            <td class="small fw-semibold text-warning">{{ r.due_date | dmy }}</td>
             <td>
               <div class="d-flex gap-1">
                 <form method="POST" action="{{ url_for('approve_borrow', bid=r.id) }}"

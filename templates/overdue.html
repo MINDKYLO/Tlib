@@ -68,7 +68,7 @@
             </td>
             <td class="small">{{ b.department or '-' }}</td>
             <td>
-              <span class="badge bg-danger fs-6">{{ b.due_date }}</span>
+              <span class="badge bg-danger fs-6">{{ b.due_date | dmy }}</span>
             </td>
             <td>
               <form method="POST" action="{{ url_for('return_equipment', bid=b.id) }}"
