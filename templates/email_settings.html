@@ -152,6 +152,36 @@
       </div>
     </div>
 
+    <!-- Send Reminders -->
+    <div class="card shadow-sm mb-3">
+      <div class="card-header fw-semibold">
+        <i class="bi bi-bell me-2 text-warning"></i>ส่ง Email แจ้งเตือนใกล้ครบกำหนด
+      </div>
+      <div class="card-body">
+        {% if request.args.get('reminder_before') is not none and request.args.get('reminder_due') is not none %}
+        <div class="alert alert-success py-2 small mb-3">
+          <i class="bi bi-check-circle me-1"></i>
+          ส่งสำเร็จ: ก่อนถึงกำหนด <strong>{{ request.args.get('reminder_before') }}</strong> คน
+          / วันครบกำหนด <strong>{{ request.args.get('reminder_due') }}</strong> คน
+        </div>
+        {% endif %}
+        <p class="text-muted small mb-3">
+          ส่งแจ้งเตือนอัตโนมัติ 2 ประเภท:<br>
+          <i class="bi bi-clock text-warning me-1"></i><strong>1 วันก่อนครบกำหนด</strong> — แจ้งเตือนล่วงหน้า<br>
+          <i class="bi bi-alarm text-danger me-1"></i><strong>วันครบกำหนด</strong> — แจ้งเตือนวันสุดท้าย<br>
+          <span class="text-info">ระบบส่งอัตโนมัติทุกวัน 08:00 น. และส่งแต่ละประเภทเพียง 1 ครั้ง</span>
+        </p>
+        <form method="POST" action="{{ url_for('email_settings_page') }}"
+              onsubmit="return confirm('ยืนยันการส่ง Email แจ้งเตือนใกล้ครบกำหนด?')">
+          <input type="hidden" name="action" value="send_reminders">
+          <button type="submit" class="btn btn-warning btn-sm w-100"
+                  {% if not cfg.enabled %}disabled{% endif %}>
+            <i class="bi bi-bell me-1"></i>ส่งแจ้งเตือนใกล้ครบกำหนดทันที
+          </button>
+        </form>
+      </div>
+    </div>
+
     <!-- Setup Guide -->
     <div class="card shadow-sm border-info">
       <div class="card-header fw-semibold text-info bg-info bg-opacity-10">

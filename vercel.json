@@ -1,5 +1,11 @@
 {
   "rewrites": [
     { "source": "/(.*)", "destination": "/app.py" }
+  ],
+  "crons": [
+    {
+      "path": "/cron/reminders",
+      "schedule": "0 1 * * *"
+    }
   ]
 }

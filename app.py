@@ -4,7 +4,7 @@ import psycopg2, psycopg2.extras
 import io, base64, csv, os, smtplib, hashlib, json
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 from functools import wraps
 from werkzeug.utils import secure_filename
 import openpyxl
@@ -145,6 +145,8 @@ def init_db():
     cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS id_number TEXT")
     cur.execute("ALTER TABLE equipment ADD COLUMN IF NOT EXISTS image TEXT")
     cur.execute("ALTER TABLE equipment ADD COLUMN IF NOT EXISTS custom_fields JSONB")
+    cur.execute("ALTER TABLE borrows ADD COLUMN IF NOT EXISTS notified_before BOOLEAN DEFAULT FALSE")
+    cur.execute("ALTER TABLE borrows ADD COLUMN IF NOT EXISTS notified_due BOOLEAN DEFAULT FALSE")
 
     cur.execute('SELECT COUNT(*) as c FROM email_settings')
     if not cur.fetchone()['c']:
@@ -242,6 +244,33 @@ def email_borrow(user_email, user_name, eq_name, due_date):
       </div>
     </div>"""
     return send_email(user_email, f'[IT Borrow] ยืมอุปกรณ์: {eq_name}', html)
+
+
+def email_reminder(user_email, user_name, eq_name, due_date, days_left):
+    if days_left == 1:
+        title   = '&#x23F0; แจ้งเตือน: พรุ่งนี้ถึงกำหนดคืนอุปกรณ์'
+        color   = '#f59e0b'
+        detail  = f'อุปกรณ์ <strong>{eq_name}</strong> ของคุณจะครบกำหนดคืน <strong>พรุ่งนี้</strong>'
+        subject = f'[IT Borrow] ⏰ พรุ่งนี้ถึงกำหนดคืน: {eq_name}'
+    else:
+        title   = '&#x1F4E2; แจ้งเตือน: วันนี้ถึงกำหนดคืนอุปกรณ์'
+        color   = '#dc2626'
+        detail  = f'อุปกรณ์ <strong>{eq_name}</strong> ของคุณครบกำหนดคืน <strong>วันนี้</strong>'
+        subject = f'[IT Borrow] 📢 วันนี้ถึงกำหนดคืน: {eq_name}'
+    html = f"""
+    <div style="font-family:sans-serif;max-width:500px;margin:auto;padding:20px">
+      <div style="background:{color};color:#fff;padding:16px 20px;border-radius:8px 8px 0 0">
+        <h2 style="margin:0">{title}</h2>
+      </div>
+      <div style="border:1px solid #e2e8f0;border-top:none;padding:20px;border-radius:0 0 8px 8px">
+        <p>สวัสดีคุณ <strong>{user_name}</strong></p>
+        <p>{detail}</p>
+        <p>&#x1F4C5; กำหนดคืน: <strong>{due_date}</strong></p>
+        <p>กรุณานำอุปกรณ์มาคืนตามกำหนดเวลา</p>
+        <p style="color:#64748b;font-size:0.85em">หากมีข้อสงสัยกรุณาติดต่อฝ่าย IT</p>
+      </div>
+    </div>"""
+    return send_email(user_email, subject, html)
 
 
 def email_overdue(user_email, user_name, eq_name, due_date):
@@ -961,6 +990,12 @@ def email_settings_page():
             conn.close()
             return redirect(url_for('email_settings_page', test_ok='1' if ok else '0'))
 
+        elif action == 'send_reminders':
+            sent_before, sent_due = _send_reminder_emails()
+            conn.close()
+            return redirect(url_for('email_settings_page',
+                                    reminder_before=sent_before, reminder_due=sent_due))
+
         elif action == 'send_overdue':
             overdue = db_fetchall(conn, '''
                 SELECT b.*, e.name as eq_name, u.name as user_name, u.email as user_email
@@ -1076,6 +1111,61 @@ def delete_categories_bulk():
     if skipped:
         flash(f'ลบไม่ได้ (มีอุปกรณ์ใช้อยู่): {", ".join(skipped)}', 'danger')
     return redirect(url_for('add_equipment'))
+
+
+# ── REMINDER EMAILS ────────────────────────────────────────────────────────────
+
+def _send_reminder_emails():
+    conn     = get_db()
+    today    = date.today()
+    tomorrow = today + timedelta(days=1)
+
+    before_rows = db_fetchall(conn, '''
+        SELECT b.*, e.name as eq_name, u.name as user_name, u.email as user_email
+        FROM borrows b
+        JOIN equipment e ON b.equipment_id=e.id
+        JOIN users u ON b.user_id=u.id
+        WHERE b.status='borrowed' AND b.due_date=%s
+          AND (b.notified_before IS NULL OR b.notified_before=FALSE)
+          AND u.email IS NOT NULL AND u.email != ''
+    ''', (tomorrow.isoformat(),))
+
+    sent_before = 0
+    for b in before_rows:
+        if email_reminder(b['user_email'], b['user_name'], b['eq_name'], b['due_date'], 1):
+            db_execute(conn, 'UPDATE borrows SET notified_before=TRUE WHERE id=%s', (b['id'],))
+            sent_before += 1
+
+    due_rows = db_fetchall(conn, '''
+        SELECT b.*, e.name as eq_name, u.name as user_name, u.email as user_email
+        FROM borrows b
+        JOIN equipment e ON b.equipment_id=e.id
+        JOIN users u ON b.user_id=u.id
+        WHERE b.status='borrowed' AND b.due_date=%s
+          AND (b.notified_due IS NULL OR b.notified_due=FALSE)
+          AND u.email IS NOT NULL AND u.email != ''
+    ''', (today.isoformat(),))
+
+    sent_due = 0
+    for b in due_rows:
+        if email_reminder(b['user_email'], b['user_name'], b['eq_name'], b['due_date'], 0):
+            db_execute(conn, 'UPDATE borrows SET notified_due=TRUE WHERE id=%s', (b['id'],))
+            sent_due += 1
+
+    conn.commit()
+    conn.close()
+    return sent_before, sent_due
+
+
+@app.route('/cron/reminders')
+def cron_reminders():
+    secret = os.environ.get('CRON_SECRET', '')
+    if secret:
+        auth = request.headers.get('Authorization', '')
+        if auth != f'Bearer {secret}':
+            return jsonify({'error': 'Unauthorized'}), 401
+    sent_before, sent_due = _send_reminder_emails()
+    return jsonify({'status': 'ok', 'sent_before': sent_before, 'sent_due': sent_due})
 
 
 # ── BORROW APPROVAL ────────────────────────────────────────────────────────────
