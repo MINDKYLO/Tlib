@@ -59,12 +59,37 @@
         </div>
 
         {% if current_borrow %}
+        {% if current_borrow.status == 'pending' %}
+        <div class="alert alert-warning mt-3 mb-0 p-2">
+          <div class="fw-semibold small mb-1">
+            <i class="bi bi-hourglass-split me-1"></i>รอการอนุมัติ: {{ current_borrow.user_name }}
+          </div>
+          <div class="small text-muted">ยื่นคำขอ {{ current_borrow.borrow_date[:10] }}
+            {% if current_borrow.due_date %}| วันที่ต้องคืน {{ current_borrow.due_date }}{% endif %}</div>
+          {% if session.role == 'admin' %}
+          <div class="d-flex gap-2 mt-2">
+            <form method="POST" action="{{ url_for('approve_borrow', bid=current_borrow.id) }}"
+                  onsubmit="return confirm('อนุมัติการยืม?')">
+              <button class="btn btn-sm btn-success">
+                <i class="bi bi-check-lg me-1"></i>อนุมัติ
+              </button>
+            </form>
+            <form method="POST" action="{{ url_for('reject_borrow', bid=current_borrow.id) }}"
+                  onsubmit="return confirm('ปฏิเสธคำขอยืม?')">
+              <button class="btn btn-sm btn-danger">
+                <i class="bi bi-x-lg me-1"></i>ปฏิเสธ
+              </button>
+            </form>
+          </div>
+          {% endif %}
+        </div>
+        {% else %}
         <div class="alert alert-warning mt-3 mb-0 p-2">
           <div class="fw-semibold small mb-1">
             <i class="bi bi-person-fill me-1"></i>ผู้ยืมปัจจุบัน: {{ current_borrow.user_name }}
           </div>
           <div class="small text-muted">ยืม {{ current_borrow.borrow_date[:10] }}
-            {% if current_borrow.due_date %}| ครบ {{ current_borrow.due_date }}{% endif %}</div>
+            {% if current_borrow.due_date %}| วันที่ต้องคืน {{ current_borrow.due_date }}{% endif %}</div>
           {% if current_borrow.user_id == session.user_id or session.role == 'admin' %}
           <form method="POST" action="{{ url_for('return_equipment', bid=current_borrow.id) }}"
                 class="mt-2" onsubmit="return confirm('ยืนยันการคืนอุปกรณ์?')">
@@ -74,6 +99,7 @@
           </form>
           {% endif %}
         </div>
+        {% endif %}
         {% endif %}
 
         <div class="d-flex gap-2 mt-3 flex-wrap">

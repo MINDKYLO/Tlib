@@ -56,14 +56,19 @@
       <div class="card-body p-0">
         {% if my_borrows %}
           {% for b in my_borrows %}
-          {% set is_overdue = b.due_date and b.due_date < today|default('') %}
+          {% set is_overdue = b.status == 'borrowed' and b.due_date and b.due_date < today|default('') %}
           <div class="borrow-item {% if is_overdue %}borrow-overdue{% endif %}">
             <div class="eq-icon category-{{ b.category|lower|replace(' ','') }}">
               {% set icons = {'notebook':'laptop','monitor':'display','mobile':'phone','camera':'camera','tablet':'tablet','printer':'printer'} %}
               <i class="bi bi-{{ icons.get(b.category|lower, 'box') }}"></i>
             </div>
             <div class="flex-grow-1 min-width-0">
-              <div class="fw-semibold small text-truncate">{{ b.eq_name }}</div>
+              <div class="fw-semibold small text-truncate">
+                {{ b.eq_name }}
+                {% if b.status == 'pending' %}
+                <span class="badge bg-warning text-dark ms-1" style="font-size:0.65rem">รอการอนุมัติ</span>
+                {% endif %}
+              </div>
               <div class="text-muted" style="font-size:0.75rem">
                 ยืม {{ b.borrow_date[:10] }}
                 {% if b.due_date %}
@@ -74,6 +79,15 @@
                 {% endif %}
               </div>
             </div>
+            {% if b.status == 'pending' %}
+            <form method="POST" action="{{ url_for('cancel_borrow', bid=b.id) }}"
+                  onsubmit="return confirm('ยกเลิกคำขอยืม {{ b.eq_name }}?')">
+              <button class="btn btn-sm btn-outline-secondary">
+                <i class="bi bi-x-lg"></i>
+                <span class="d-none d-sm-inline ms-1">ยกเลิก</span>
+              </button>
+            </form>
+            {% else %}
             <form method="POST" action="{{ url_for('return_equipment', bid=b.id) }}"
                   onsubmit="return confirm('ยืนยันการคืน {{ b.eq_name }}?')">
               <button class="btn btn-sm btn-success">
@@ -81,6 +95,7 @@
                 <span class="d-none d-sm-inline ms-1">คืน</span>
               </button>
             </form>
+            {% endif %}
           </div>
           {% endfor %}
         {% else %}

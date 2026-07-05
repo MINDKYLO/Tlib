@@ -172,6 +172,19 @@ def admin_required(f):
     return decorated
 
 
+@app.context_processor
+def inject_pending_count():
+    if 'user_id' in session and session.get('role') == 'admin':
+        try:
+            conn = get_db()
+            count = db_fetchone(conn, "SELECT COUNT(*) as c FROM borrows WHERE status='pending'")['c']
+            conn.close()
+            return {'pending_count': count}
+        except Exception:
+            return {'pending_count': 0}
+    return {'pending_count': 0}
+
+
 # ── EMAIL HELPERS ──────────────────────────────────────────────────────────────
 
 def get_email_cfg():
@@ -302,7 +315,7 @@ def dashboard():
     my_borrows = db_fetchall(conn, '''
         SELECT b.*, e.name as eq_name, e.category, e.brand, e.image
         FROM borrows b JOIN equipment e ON b.equipment_id=e.id
-        WHERE b.user_id=%s AND b.status='borrowed'
+        WHERE b.user_id=%s AND b.status IN ('borrowed', 'pending')
         ORDER BY b.borrow_date DESC
     ''', (session['user_id'],))
 
@@ -371,7 +384,7 @@ def equipment_group():
                b.id AS borrow_id, b.borrow_date, b.due_date,
                u.name AS borrower_name, u.id AS borrower_uid
         FROM equipment e
-        LEFT JOIN borrows b ON b.equipment_id = e.id AND b.status = 'borrowed'
+        LEFT JOIN borrows b ON b.equipment_id = e.id AND b.status IN ('borrowed', 'pending')
         LEFT JOIN users u ON b.user_id = u.id
         WHERE e.name = %s AND e.category = %s
         ORDER BY COALESCE(e.model,'') NULLS LAST, e.serial_number NULLS LAST, e.id
@@ -495,7 +508,7 @@ def equipment_detail(eid):
     current_borrow = db_fetchone(conn, '''
         SELECT b.*, u.name as user_name
         FROM borrows b JOIN users u ON b.user_id=u.id
-        WHERE b.equipment_id=%s AND b.status='borrowed'
+        WHERE b.equipment_id=%s AND b.status IN ('borrowed', 'pending')
     ''', (eid,))
     conn.close()
     return render_template('equipment_detail.html',
@@ -608,15 +621,12 @@ def borrow(eid):
         conn.close()
         return redirect(url_for('equipment_detail', eid=eid))
     notes    = request.form.get('notes', '')
-    db_execute(conn, 'INSERT INTO borrows (equipment_id, user_id, due_date, notes) VALUES (%s,%s,%s,%s)',
+    db_execute(conn, "INSERT INTO borrows (equipment_id, user_id, due_date, notes, status) VALUES (%s,%s,%s,%s,'pending')",
                (eid, session['user_id'], due_date, notes))
     db_execute(conn, "UPDATE equipment SET status='borrowed' WHERE id=%s", (eid,))
     conn.commit()
-    user = db_fetchone(conn, 'SELECT * FROM users WHERE id=%s', (session['user_id'],))
     conn.close()
-    if user and user.get('email'):
-        email_borrow(user['email'], user['name'], eq['name'], due_date)
-    flash(f'ยืม "{eq["name"]}" สำเร็จ', 'success')
+    flash(f'ส่งคำขอยืม "{eq["name"]}" แล้ว รอ Admin อนุมัติ', 'success')
     return redirect(url_for('dashboard'))
 
 
@@ -630,6 +640,10 @@ def return_equipment(bid):
     ''', (bid,))
     if not borrow_row:
         flash('ไม่พบข้อมูลการยืม', 'danger')
+        conn.close()
+        return redirect(url_for('dashboard'))
+    if borrow_row['status'] == 'pending':
+        flash('ไม่สามารถคืนอุปกรณ์ที่ยังรออนุมัติได้', 'danger')
         conn.close()
         return redirect(url_for('dashboard'))
     if borrow_row['user_id'] != session['user_id'] and session.get('role') != 'admin':
@@ -1044,6 +1058,85 @@ def delete_categories_bulk():
     if skipped:
         flash(f'ลบไม่ได้ (มีอุปกรณ์ใช้อยู่): {", ".join(skipped)}', 'danger')
     return redirect(url_for('add_equipment'))
+
+
+# ── BORROW APPROVAL ────────────────────────────────────────────────────────────
+
+@app.route('/admin/borrow-requests')
+@admin_required
+def pending_requests():
+    conn = get_db()
+    requests = db_fetchall(conn, '''
+        SELECT b.*, e.name as eq_name, e.category, e.serial_number,
+               u.name as user_name, u.department, u.phone as user_phone, u.email as user_email
+        FROM borrows b
+        JOIN equipment e ON b.equipment_id=e.id
+        JOIN users u ON b.user_id=u.id
+        WHERE b.status='pending'
+        ORDER BY b.borrow_date ASC
+    ''')
+    conn.close()
+    return render_template('pending_requests.html', requests=requests)
+
+
+@app.route('/admin/borrow-requests/<int:bid>/approve', methods=['POST'])
+@admin_required
+def approve_borrow(bid):
+    conn = get_db()
+    borrow_row = db_fetchone(conn, '''
+        SELECT b.*, e.name as eq_name, u.name as user_name, u.email as user_email
+        FROM borrows b JOIN equipment e ON b.equipment_id=e.id
+        JOIN users u ON b.user_id=u.id WHERE b.id=%s
+    ''', (bid,))
+    if not borrow_row or borrow_row['status'] != 'pending':
+        conn.close()
+        flash('ไม่พบคำขอ', 'danger')
+        return redirect(url_for('pending_requests'))
+    db_execute(conn, "UPDATE borrows SET status='borrowed' WHERE id=%s", (bid,))
+    conn.commit()
+    conn.close()
+    if borrow_row.get('user_email'):
+        email_borrow(borrow_row['user_email'], borrow_row['user_name'],
+                     borrow_row['eq_name'], borrow_row['due_date'])
+    flash(f'อนุมัติการยืม "{borrow_row["eq_name"]}" ของ {borrow_row["user_name"]} แล้ว', 'success')
+    return redirect(url_for('pending_requests'))
+
+
+@app.route('/admin/borrow-requests/<int:bid>/reject', methods=['POST'])
+@admin_required
+def reject_borrow(bid):
+    conn = get_db()
+    borrow_row = db_fetchone(conn, '''
+        SELECT b.*, e.name as eq_name
+        FROM borrows b JOIN equipment e ON b.equipment_id=e.id WHERE b.id=%s
+    ''', (bid,))
+    if not borrow_row or borrow_row['status'] != 'pending':
+        conn.close()
+        flash('ไม่พบคำขอ', 'danger')
+        return redirect(url_for('pending_requests'))
+    db_execute(conn, "UPDATE borrows SET status='rejected' WHERE id=%s", (bid,))
+    db_execute(conn, "UPDATE equipment SET status='available' WHERE id=%s", (borrow_row['equipment_id'],))
+    conn.commit()
+    conn.close()
+    flash(f'ปฏิเสธคำขอยืม "{borrow_row["eq_name"]}" แล้ว', 'success')
+    return redirect(url_for('pending_requests'))
+
+
+@app.route('/borrow-requests/<int:bid>/cancel', methods=['POST'])
+@login_required
+def cancel_borrow(bid):
+    conn = get_db()
+    borrow_row = db_fetchone(conn, 'SELECT * FROM borrows WHERE id=%s', (bid,))
+    if not borrow_row or borrow_row['status'] != 'pending' or borrow_row['user_id'] != session['user_id']:
+        conn.close()
+        flash('ไม่สามารถยกเลิกคำขอนี้ได้', 'danger')
+        return redirect(url_for('dashboard'))
+    db_execute(conn, "UPDATE borrows SET status='rejected' WHERE id=%s", (bid,))
+    db_execute(conn, "UPDATE equipment SET status='available' WHERE id=%s", (borrow_row['equipment_id'],))
+    conn.commit()
+    conn.close()
+    flash('ยกเลิกคำขอยืมแล้ว', 'success')
+    return redirect(url_for('dashboard'))
 
 
 # ── SERVE UPLOADS ──────────────────────────────────────────────────────────────

@@ -80,7 +80,11 @@
             </td>
             <td class="small">{{ b.return_date[:10] if b.return_date else '-' }}</td>
             <td>
-              {% if is_overdue %}
+              {% if b.status == 'pending' %}
+                <span class="badge bg-warning text-dark">รอการอนุมัติ</span>
+              {% elif b.status == 'rejected' %}
+                <span class="badge bg-secondary">ถูกปฏิเสธ</span>
+              {% elif is_overdue %}
                 <span class="badge bg-danger">เกินกำหนด</span>
               {% elif b.status == 'borrowed' %}
                 <span class="badge badge-borrowed">ยืมอยู่</span>

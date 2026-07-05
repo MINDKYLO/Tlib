@@ -40,6 +40,15 @@
        class="nav-link {% if 'user' in (request.endpoint or '') and request.endpoint != 'dashboard' %}active{% endif %}">
       <i class="bi bi-people"></i><span>จัดการผู้ใช้</span>
     </a>
+    <a href="{{ url_for('pending_requests') }}"
+       class="nav-link {% if request.endpoint == 'pending_requests' %}active{% endif %}">
+      <i class="bi bi-hourglass-split"></i>
+      <span>คำขอยืมอุปกรณ์
+        {% if pending_count > 0 %}
+        <span class="badge bg-warning text-dark ms-1">{{ pending_count }}</span>
+        {% endif %}
+      </span>
+    </a>
     <a href="{{ url_for('overdue_list') }}"
        class="nav-link {% if request.endpoint == 'overdue_list' %}active{% endif %}">
       <i class="bi bi-alarm"></i><span>แจ้งเตือนค้างส่งคืน</span>
