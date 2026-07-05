@@ -1204,8 +1204,9 @@ def reservation_list():
         FROM reservations r
         JOIN equipment e ON r.equipment_id=e.id
         JOIN users u ON r.user_id=u.id
+        WHERE r.status IN ('pending', 'approved')
         ORDER BY
-            CASE r.status WHEN 'pending' THEN 1 WHEN 'approved' THEN 2 ELSE 3 END,
+            CASE r.status WHEN 'pending' THEN 1 ELSE 2 END,
             r.start_date ASC
     ''')
     conn.close()
