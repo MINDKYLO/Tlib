@@ -339,6 +339,7 @@ def logout():
 @app.route('/')
 @login_required
 def dashboard():
+    auto_activate_reservations()
     conn      = get_db()
     today     = date.today()
     today_str = today.isoformat()
@@ -1195,6 +1196,7 @@ def reserve(eid):
 @app.route('/admin/reservations')
 @admin_required
 def reservation_list():
+    auto_activate_reservations()
     conn  = get_db()
     reservations = db_fetchall(conn, '''
         SELECT r.*, e.name as eq_name, e.category, e.serial_number,
@@ -1252,30 +1254,24 @@ def reject_reservation(rid):
     return redirect(url_for('reservation_list'))
 
 
-@app.route('/admin/reservations/<int:rid>/activate', methods=['POST'])
-@admin_required
-def activate_reservation(rid):
-    conn = get_db()
-    r = db_fetchone(conn, '''SELECT r.*, e.name as eq_name, e.status as eq_status
-                              FROM reservations r JOIN equipment e ON r.equipment_id=e.id
-                              WHERE r.id=%s''', (rid,))
-    if not r or r['status'] != 'approved':
-        conn.close()
-        flash('ไม่พบการจองที่อนุมัติแล้ว', 'danger')
-        return redirect(url_for('reservation_list'))
-    if r['eq_status'] != 'available':
-        conn.close()
-        flash('อุปกรณ์ไม่ว่าง ไม่สามารถแปลงเป็นการยืมได้', 'danger')
-        return redirect(url_for('reservation_list'))
-    db_execute(conn, '''INSERT INTO borrows (equipment_id, user_id, due_date, notes, status)
-                        VALUES (%s,%s,%s,%s,'borrowed')''',
-               (r['equipment_id'], r['user_id'], r['end_date'], r['notes']))
-    db_execute(conn, "UPDATE equipment SET status='borrowed' WHERE id=%s", (r['equipment_id'],))
-    db_execute(conn, "UPDATE reservations SET status='active' WHERE id=%s", (rid,))
+
+def auto_activate_reservations():
+    conn  = get_db()
+    today = date.today().isoformat()
+    ready = db_fetchall(conn, '''
+        SELECT r.*, e.status as eq_status
+        FROM reservations r JOIN equipment e ON r.equipment_id=e.id
+        WHERE r.status='approved' AND r.start_date <= %s
+    ''', (today,))
+    for r in ready:
+        if r['eq_status'] == 'available':
+            db_execute(conn, '''INSERT INTO borrows (equipment_id, user_id, due_date, notes, status)
+                                VALUES (%s,%s,%s,%s,'borrowed')''',
+                       (r['equipment_id'], r['user_id'], r['end_date'], r['notes']))
+            db_execute(conn, "UPDATE equipment SET status='borrowed' WHERE id=%s", (r['equipment_id'],))
+            db_execute(conn, "UPDATE reservations SET status='active' WHERE id=%s", (r['id'],))
     conn.commit()
     conn.close()
-    flash(f'แปลงการจอง "{r["eq_name"]}" เป็นการยืมสำเร็จ', 'success')
-    return redirect(url_for('reservation_list'))
 
 
 @app.route('/reservations/<int:rid>/cancel', methods=['POST'])

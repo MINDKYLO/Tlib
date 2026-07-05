@@ -82,15 +82,9 @@
                   <button class="btn btn-xs btn-danger"><i class="bi bi-x-lg me-1"></i>ปฏิเสธ</button>
                 </form>
                 {% elif r.status == 'approved' %}
-                  {% if is_ready %}
-                  <form method="POST" action="{{ url_for('activate_reservation', rid=r.id) }}"
-                        onsubmit="return confirm('แปลงเป็นการยืมจริง?')">
-                    <button class="btn btn-xs btn-primary"><i class="bi bi-arrow-right-circle me-1"></i>เริ่มยืม</button>
-                  </form>
-                  {% endif %}
                   <form method="POST" action="{{ url_for('cancel_reservation', rid=r.id) }}"
                         onsubmit="return confirm('ยกเลิกการจองนี้?')">
-                    <button class="btn btn-xs btn-outline-danger"><i class="bi bi-x-lg"></i></button>
+                    <button class="btn btn-xs btn-outline-danger"><i class="bi bi-x-lg me-1"></i>ยกเลิก</button>
                   </form>
                 {% endif %}
               </div>
