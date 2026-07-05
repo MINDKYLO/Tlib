@@ -43,6 +43,47 @@
 {% endif %}
 
 
+<!-- PENDING REQUESTS (user view) -->
+{% if my_pending %}
+<div class="row g-3 mb-3">
+  <div class="col-12">
+    <div class="card shadow-sm border-warning">
+      <div class="card-header d-flex justify-content-between align-items-center" style="background:#fef9c3">
+        <span class="fw-semibold text-warning-emphasis">
+          <i class="bi bi-hourglass-split me-2"></i>คำขอยืมที่รออนุมัติ
+          <span class="badge bg-warning text-dark ms-1">{{ my_pending|length }}</span>
+        </span>
+      </div>
+      <div class="card-body p-0">
+        {% for b in my_pending %}
+        <div class="borrow-item">
+          <div class="eq-icon" style="background:#fef3c7;color:#d97706">
+            <i class="bi bi-hourglass-split"></i>
+          </div>
+          <div class="flex-grow-1 min-width-0">
+            <div class="fw-semibold small text-truncate">{{ b.eq_name }}</div>
+            <div class="text-muted" style="font-size:0.75rem">
+              ยื่นคำขอ {{ b.borrow_date[:10] }}
+              {% if b.due_date %}
+                &nbsp;|&nbsp;<span class="text-warning">วันที่ต้องคืน {{ b.due_date }}</span>
+              {% endif %}
+            </div>
+          </div>
+          <form method="POST" action="{{ url_for('cancel_borrow', bid=b.id) }}"
+                onsubmit="return confirm('ยกเลิกคำขอยืม {{ b.eq_name }}?')">
+            <button class="btn btn-sm btn-outline-secondary">
+              <i class="bi bi-x-lg"></i>
+              <span class="d-none d-sm-inline ms-1">ยกเลิก</span>
+            </button>
+          </form>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
 <!-- MY BORROWS -->
 <div class="row g-3 mb-3">
   <div class="col-12">
@@ -56,19 +97,14 @@
       <div class="card-body p-0">
         {% if my_borrows %}
           {% for b in my_borrows %}
-          {% set is_overdue = b.status == 'borrowed' and b.due_date and b.due_date < today|default('') %}
+          {% set is_overdue = b.due_date and b.due_date < today|default('') %}
           <div class="borrow-item {% if is_overdue %}borrow-overdue{% endif %}">
             <div class="eq-icon category-{{ b.category|lower|replace(' ','') }}">
               {% set icons = {'notebook':'laptop','monitor':'display','mobile':'phone','camera':'camera','tablet':'tablet','printer':'printer'} %}
               <i class="bi bi-{{ icons.get(b.category|lower, 'box') }}"></i>
             </div>
             <div class="flex-grow-1 min-width-0">
-              <div class="fw-semibold small text-truncate">
-                {{ b.eq_name }}
-                {% if b.status == 'pending' %}
-                <span class="badge bg-warning text-dark ms-1" style="font-size:0.65rem">รอการอนุมัติ</span>
-                {% endif %}
-              </div>
+              <div class="fw-semibold small text-truncate">{{ b.eq_name }}</div>
               <div class="text-muted" style="font-size:0.75rem">
                 ยืม {{ b.borrow_date[:10] }}
                 {% if b.due_date %}
@@ -79,15 +115,6 @@
                 {% endif %}
               </div>
             </div>
-            {% if b.status == 'pending' %}
-            <form method="POST" action="{{ url_for('cancel_borrow', bid=b.id) }}"
-                  onsubmit="return confirm('ยกเลิกคำขอยืม {{ b.eq_name }}?')">
-              <button class="btn btn-sm btn-outline-secondary">
-                <i class="bi bi-x-lg"></i>
-                <span class="d-none d-sm-inline ms-1">ยกเลิก</span>
-              </button>
-            </form>
-            {% else %}
             <form method="POST" action="{{ url_for('return_equipment', bid=b.id) }}"
                   onsubmit="return confirm('ยืนยันการคืน {{ b.eq_name }}?')">
               <button class="btn btn-sm btn-success">
@@ -95,7 +122,6 @@
                 <span class="d-none d-sm-inline ms-1">คืน</span>
               </button>
             </form>
-            {% endif %}
           </div>
           {% endfor %}
         {% else %}

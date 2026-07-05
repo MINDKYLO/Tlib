@@ -315,7 +315,14 @@ def dashboard():
     my_borrows = db_fetchall(conn, '''
         SELECT b.*, e.name as eq_name, e.category, e.brand, e.image
         FROM borrows b JOIN equipment e ON b.equipment_id=e.id
-        WHERE b.user_id=%s AND b.status IN ('borrowed', 'pending')
+        WHERE b.user_id=%s AND b.status='borrowed'
+        ORDER BY b.borrow_date DESC
+    ''', (session['user_id'],))
+
+    my_pending = db_fetchall(conn, '''
+        SELECT b.*, e.name as eq_name, e.category, e.brand, e.image
+        FROM borrows b JOIN equipment e ON b.equipment_id=e.id
+        WHERE b.user_id=%s AND b.status='pending'
         ORDER BY b.borrow_date DESC
     ''', (session['user_id'],))
 
@@ -323,7 +330,7 @@ def dashboard():
     return render_template('dashboard.html',
                            total=total, available=available, borrowed=borrowed,
                            overdue=overdue, recent=recent, my_borrows=my_borrows,
-                           today=today_str)
+                           my_pending=my_pending, today=today_str)
 
 
 # ── EQUIPMENT ──────────────────────────────────────────────────────────────────
