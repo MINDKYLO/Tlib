@@ -43,6 +43,54 @@
 {% endif %}
 
 
+<!-- MY RESERVATIONS -->
+{% if my_reservations %}
+<div class="row g-3 mb-3">
+  <div class="col-12">
+    <div class="card shadow-sm border-info">
+      <div class="card-header d-flex justify-content-between align-items-center" style="background:#eff6ff">
+        <span class="fw-semibold text-info-emphasis">
+          <i class="bi bi-calendar-check me-2"></i>การจองล่วงหน้า
+          <span class="badge bg-info text-dark ms-1">{{ my_reservations|length }}</span>
+        </span>
+        <a href="{{ url_for('equipment_list') }}" class="btn btn-sm btn-outline-info">
+          <i class="bi bi-plus-lg me-1"></i>จองเพิ่ม
+        </a>
+      </div>
+      <div class="card-body p-0">
+        {% for r in my_reservations %}
+        <div class="borrow-item">
+          <div class="eq-icon" style="background:#dbeafe;color:#2563eb">
+            <i class="bi bi-calendar-event"></i>
+          </div>
+          <div class="flex-grow-1 min-width-0">
+            <div class="fw-semibold small text-truncate">
+              {{ r.eq_name }}
+              {% if r.status == 'pending' %}
+              <span class="badge bg-warning text-dark ms-1" style="font-size:0.65rem">รออนุมัติ</span>
+              {% else %}
+              <span class="badge bg-success ms-1" style="font-size:0.65rem">อนุมัติแล้ว</span>
+              {% endif %}
+            </div>
+            <div class="text-muted" style="font-size:0.75rem">
+              ยืม {{ r.start_date | dmy }} &nbsp;→&nbsp; คืน {{ r.end_date | dmy }}
+            </div>
+          </div>
+          <form method="POST" action="{{ url_for('cancel_reservation', rid=r.id) }}"
+                onsubmit="return confirm('ยกเลิกการจอง {{ r.eq_name }}?')">
+            <button class="btn btn-sm btn-outline-secondary">
+              <i class="bi bi-x-lg"></i>
+              <span class="d-none d-sm-inline ms-1">ยกเลิก</span>
+            </button>
+          </form>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
 <!-- PENDING REQUESTS (user view) -->
 {% if my_pending %}
 <div class="row g-3 mb-3">

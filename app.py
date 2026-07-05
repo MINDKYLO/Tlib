@@ -148,6 +148,17 @@ def init_db():
     cur.execute("ALTER TABLE borrows ADD COLUMN IF NOT EXISTS notified_before BOOLEAN DEFAULT FALSE")
     cur.execute("ALTER TABLE borrows ADD COLUMN IF NOT EXISTS notified_due BOOLEAN DEFAULT FALSE")
 
+    cur.execute('''CREATE TABLE IF NOT EXISTS reservations (
+        id           SERIAL PRIMARY KEY,
+        equipment_id INTEGER NOT NULL REFERENCES equipment(id),
+        user_id      INTEGER NOT NULL REFERENCES users(id),
+        start_date   DATE NOT NULL,
+        end_date     DATE NOT NULL,
+        status       TEXT DEFAULT 'pending',
+        notes        TEXT,
+        created_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )''')
+
     cur.execute('SELECT COUNT(*) as c FROM email_settings')
     if not cur.fetchone()['c']:
         cur.execute("INSERT INTO email_settings (smtp_host, smtp_port) VALUES ('', 587)")
@@ -190,12 +201,13 @@ def inject_pending_count():
     if 'user_id' in session and session.get('role') == 'admin':
         try:
             conn = get_db()
-            count = db_fetchone(conn, "SELECT COUNT(*) as c FROM borrows WHERE status='pending'")['c']
+            borrow_count  = db_fetchone(conn, "SELECT COUNT(*) as c FROM borrows WHERE status='pending'")['c']
+            reserve_count = db_fetchone(conn, "SELECT COUNT(*) as c FROM reservations WHERE status='pending'")['c']
             conn.close()
-            return {'pending_count': count}
+            return {'pending_count': borrow_count, 'reserve_pending_count': reserve_count}
         except Exception:
-            return {'pending_count': 0}
-    return {'pending_count': 0}
+            return {'pending_count': 0, 'reserve_pending_count': 0}
+    return {'pending_count': 0, 'reserve_pending_count': 0}
 
 
 # ── EMAIL HELPERS ──────────────────────────────────────────────────────────────
@@ -366,11 +378,19 @@ def dashboard():
         ORDER BY b.borrow_date DESC
     ''', (session['user_id'],))
 
+    my_reservations = db_fetchall(conn, '''
+        SELECT r.*, e.name as eq_name, e.category, e.image
+        FROM reservations r JOIN equipment e ON r.equipment_id=e.id
+        WHERE r.user_id=%s AND r.status IN ('pending','approved')
+        ORDER BY r.start_date ASC
+    ''', (session['user_id'],))
+
     conn.close()
     return render_template('dashboard.html',
                            total=total, available=available, borrowed=borrowed,
                            overdue=overdue, recent=recent, my_borrows=my_borrows,
-                           my_pending=my_pending, today=today_str)
+                           my_pending=my_pending, my_reservations=my_reservations,
+                           today=today_str)
 
 
 # ── EQUIPMENT ──────────────────────────────────────────────────────────────────
@@ -1111,6 +1131,171 @@ def delete_categories_bulk():
     if skipped:
         flash(f'ลบไม่ได้ (มีอุปกรณ์ใช้อยู่): {", ".join(skipped)}', 'danger')
     return redirect(url_for('add_equipment'))
+
+
+# ── RESERVATION ROUTES ─────────────────────────────────────────────────────────
+
+def email_reservation(user_email, user_name, eq_name, start_date, end_date, status):
+    if status == 'approved':
+        title = '&#x2705; การจองอุปกรณ์ได้รับการอนุมัติ'
+        color = '#16a34a'
+        body  = f'การจอง <strong>{eq_name}</strong> ของคุณได้รับการอนุมัติแล้ว'
+        extra = f'<p>&#x1F4C5; วันที่ยืม: <strong>{start_date}</strong></p><p>&#x1F4C5; วันที่คืน: <strong>{end_date}</strong></p>'
+        subj  = f'[IT Borrow] ✅ อนุมัติการจอง: {eq_name}'
+    else:
+        title = '&#x274C; การจองอุปกรณ์ถูกปฏิเสธ'
+        color = '#dc2626'
+        body  = f'การจอง <strong>{eq_name}</strong> ของคุณถูกปฏิเสธ'
+        extra = '<p>กรุณาติดต่อฝ่าย IT สำหรับข้อมูลเพิ่มเติม</p>'
+        subj  = f'[IT Borrow] ❌ ปฏิเสธการจอง: {eq_name}'
+    html = f"""
+    <div style="font-family:sans-serif;max-width:500px;margin:auto;padding:20px">
+      <div style="background:{color};color:#fff;padding:16px 20px;border-radius:8px 8px 0 0">
+        <h2 style="margin:0">{title}</h2>
+      </div>
+      <div style="border:1px solid #e2e8f0;border-top:none;padding:20px;border-radius:0 0 8px 8px">
+        <p>สวัสดีคุณ <strong>{user_name}</strong></p>
+        <p>{body}</p>
+        {extra}
+        <p style="color:#64748b;font-size:0.85em">หากมีข้อสงสัยกรุณาติดต่อฝ่าย IT</p>
+      </div>
+    </div>"""
+    return send_email(user_email, subj, html)
+
+
+@app.route('/reserve/<int:eid>', methods=['POST'])
+@login_required
+def reserve(eid):
+    conn = get_db()
+    eq   = db_fetchone(conn, 'SELECT * FROM equipment WHERE id=%s', (eid,))
+    if not eq:
+        conn.close()
+        flash('ไม่พบอุปกรณ์', 'danger')
+        return redirect(url_for('equipment_list'))
+    start_date = request.form.get('start_date', '').strip()
+    end_date   = request.form.get('end_date', '').strip()
+    notes      = request.form.get('notes', '').strip()
+    if not start_date or not end_date:
+        conn.close()
+        flash('กรุณาระบุวันที่ยืมและวันที่คืน', 'danger')
+        return redirect(url_for('equipment_detail', eid=eid))
+    if end_date <= start_date:
+        conn.close()
+        flash('วันที่คืนต้องมากกว่าวันที่ยืม', 'danger')
+        return redirect(url_for('equipment_detail', eid=eid))
+    db_execute(conn, '''INSERT INTO reservations (equipment_id, user_id, start_date, end_date, notes)
+                        VALUES (%s,%s,%s,%s,%s)''',
+               (eid, session['user_id'], start_date, end_date, notes))
+    conn.commit()
+    conn.close()
+    flash(f'จอง "{eq["name"]}" สำเร็จ รอ Admin อนุมัติ', 'success')
+    return redirect(url_for('dashboard'))
+
+
+@app.route('/admin/reservations')
+@admin_required
+def reservation_list():
+    conn  = get_db()
+    reservations = db_fetchall(conn, '''
+        SELECT r.*, e.name as eq_name, e.category, e.serial_number,
+               u.name as user_name, u.department, u.phone as user_phone, u.email as user_email
+        FROM reservations r
+        JOIN equipment e ON r.equipment_id=e.id
+        JOIN users u ON r.user_id=u.id
+        ORDER BY
+            CASE r.status WHEN 'pending' THEN 1 WHEN 'approved' THEN 2 ELSE 3 END,
+            r.start_date ASC
+    ''')
+    conn.close()
+    return render_template('reservations.html', reservations=reservations, today=date.today().isoformat())
+
+
+@app.route('/admin/reservations/<int:rid>/approve', methods=['POST'])
+@admin_required
+def approve_reservation(rid):
+    conn = get_db()
+    r = db_fetchone(conn, '''SELECT r.*, e.name as eq_name, u.name as user_name, u.email as user_email
+                              FROM reservations r JOIN equipment e ON r.equipment_id=e.id
+                              JOIN users u ON r.user_id=u.id WHERE r.id=%s''', (rid,))
+    if not r or r['status'] != 'pending':
+        conn.close()
+        flash('ไม่พบการจอง', 'danger')
+        return redirect(url_for('reservation_list'))
+    db_execute(conn, "UPDATE reservations SET status='approved' WHERE id=%s", (rid,))
+    conn.commit()
+    conn.close()
+    if r.get('user_email'):
+        email_reservation(r['user_email'], r['user_name'], r['eq_name'],
+                          r['start_date'], r['end_date'], 'approved')
+    flash(f'อนุมัติการจอง "{r["eq_name"]}" ของ {r["user_name"]} แล้ว', 'success')
+    return redirect(url_for('reservation_list'))
+
+
+@app.route('/admin/reservations/<int:rid>/reject', methods=['POST'])
+@admin_required
+def reject_reservation(rid):
+    conn = get_db()
+    r = db_fetchone(conn, '''SELECT r.*, e.name as eq_name, u.name as user_name, u.email as user_email
+                              FROM reservations r JOIN equipment e ON r.equipment_id=e.id
+                              JOIN users u ON r.user_id=u.id WHERE r.id=%s''', (rid,))
+    if not r or r['status'] not in ('pending', 'approved'):
+        conn.close()
+        flash('ไม่พบการจอง', 'danger')
+        return redirect(url_for('reservation_list'))
+    db_execute(conn, "UPDATE reservations SET status='rejected' WHERE id=%s", (rid,))
+    conn.commit()
+    conn.close()
+    if r.get('user_email'):
+        email_reservation(r['user_email'], r['user_name'], r['eq_name'],
+                          r['start_date'], r['end_date'], 'rejected')
+    flash(f'ปฏิเสธการจอง "{r["eq_name"]}" แล้ว', 'success')
+    return redirect(url_for('reservation_list'))
+
+
+@app.route('/admin/reservations/<int:rid>/activate', methods=['POST'])
+@admin_required
+def activate_reservation(rid):
+    conn = get_db()
+    r = db_fetchone(conn, '''SELECT r.*, e.name as eq_name, e.status as eq_status
+                              FROM reservations r JOIN equipment e ON r.equipment_id=e.id
+                              WHERE r.id=%s''', (rid,))
+    if not r or r['status'] != 'approved':
+        conn.close()
+        flash('ไม่พบการจองที่อนุมัติแล้ว', 'danger')
+        return redirect(url_for('reservation_list'))
+    if r['eq_status'] != 'available':
+        conn.close()
+        flash('อุปกรณ์ไม่ว่าง ไม่สามารถแปลงเป็นการยืมได้', 'danger')
+        return redirect(url_for('reservation_list'))
+    db_execute(conn, '''INSERT INTO borrows (equipment_id, user_id, due_date, notes, status)
+                        VALUES (%s,%s,%s,%s,'borrowed')''',
+               (r['equipment_id'], r['user_id'], r['end_date'], r['notes']))
+    db_execute(conn, "UPDATE equipment SET status='borrowed' WHERE id=%s", (r['equipment_id'],))
+    db_execute(conn, "UPDATE reservations SET status='active' WHERE id=%s", (rid,))
+    conn.commit()
+    conn.close()
+    flash(f'แปลงการจอง "{r["eq_name"]}" เป็นการยืมสำเร็จ', 'success')
+    return redirect(url_for('reservation_list'))
+
+
+@app.route('/reservations/<int:rid>/cancel', methods=['POST'])
+@login_required
+def cancel_reservation(rid):
+    conn = get_db()
+    r = db_fetchone(conn, 'SELECT * FROM reservations WHERE id=%s', (rid,))
+    if not r or r['status'] not in ('pending', 'approved'):
+        conn.close()
+        flash('ไม่สามารถยกเลิกการจองนี้ได้', 'danger')
+        return redirect(url_for('dashboard'))
+    if r['user_id'] != session['user_id'] and session.get('role') != 'admin':
+        conn.close()
+        flash('ไม่มีสิทธิ์ยกเลิกการจองนี้', 'danger')
+        return redirect(url_for('dashboard'))
+    db_execute(conn, "UPDATE reservations SET status='cancelled' WHERE id=%s", (rid,))
+    conn.commit()
+    conn.close()
+    flash('ยกเลิกการจองแล้ว', 'success')
+    return redirect(url_for('dashboard'))
 
 
 # ── REMINDER EMAILS ────────────────────────────────────────────────────────────

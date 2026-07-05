@@ -50,6 +50,15 @@
         {% endif %}
       </span>
     </a>
+    <a href="{{ url_for('reservation_list') }}"
+       class="nav-link {% if request.endpoint == 'reservation_list' %}active{% endif %}">
+      <i class="bi bi-calendar-check"></i>
+      <span>การจองอุปกรณ์
+        {% if reserve_pending_count > 0 %}
+        <span class="badge bg-info text-dark ms-1">{{ reserve_pending_count }}</span>
+        {% endif %}
+      </span>
+    </a>
     <a href="{{ url_for('overdue_list') }}"
        class="nav-link {% if request.endpoint == 'overdue_list' %}active{% endif %}">
       <i class="bi bi-alarm"></i><span>แจ้งเตือนค้างส่งคืน</span>

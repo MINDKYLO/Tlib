@@ -109,6 +109,10 @@
             <i class="bi bi-arrow-right-circle me-1"></i>ยืมอุปกรณ์
           </button>
           {% endif %}
+          <button class="btn btn-outline-info"
+                  data-bs-toggle="modal" data-bs-target="#reserveModal">
+            <i class="bi bi-calendar-plus me-1"></i>จองล่วงหน้า
+          </button>
           {% if session.role == 'admin' %}
           <a href="{{ url_for('edit_equipment', eid=eq.id) }}" class="btn btn-outline-secondary">
             <i class="bi bi-pencil me-1"></i>แก้ไข
@@ -165,10 +169,66 @@
   </div>
 </div>
 {% endif %}
+
+<!-- RESERVE MODAL -->
+<div class="modal fade" id="reserveModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-calendar-plus me-2 text-info"></i>จองอุปกรณ์ล่วงหน้า</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="POST" action="{{ url_for('reserve', eid=eq.id) }}" id="reserveForm">
+        <div class="modal-body">
+          <div class="borrow-summary mb-3">
+            <div>
+              <div class="fw-bold">{{ eq.name }}</div>
+              <div class="text-muted small">{{ eq.brand }} {{ eq.model }} | Serial: {{ eq.serial_number }}</div>
+            </div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold small">วันที่จะยืม <span class="text-danger">*</span></label>
+            <input type="date" name="start_date" id="reserveStart" class="form-control form-control-sm" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold small">วันที่จะคืน <span class="text-danger">*</span></label>
+            <input type="date" name="end_date" id="reserveEnd" class="form-control form-control-sm" required>
+            <div id="reserveDateErr" class="text-danger small mt-1" style="display:none;">วันที่คืนต้องมากกว่าวันที่ยืม</div>
+          </div>
+          <div class="mb-2">
+            <label class="form-label fw-semibold small">หมายเหตุ</label>
+            <textarea name="notes" class="form-control form-control-sm" rows="2"
+                      placeholder="วัตถุประสงค์การยืม..."></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">ยกเลิก</button>
+          <button type="button" class="btn btn-info text-white" onclick="submitReserve()">
+            <i class="bi bi-calendar-check me-1"></i>ยืนยันการจอง
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
 <script>
+function submitReserve() {
+  const start = document.getElementById('reserveStart');
+  const end   = document.getElementById('reserveEnd');
+  const err   = document.getElementById('reserveDateErr');
+  if (!start.value || !end.value) { return; }
+  if (end.value <= start.value) {
+    end.classList.add('is-invalid');
+    err.style.display = 'block';
+    return;
+  }
+  end.classList.remove('is-invalid');
+  err.style.display = 'none';
+  document.getElementById('reserveForm').submit();
+}
 function submitBorrow() {
   const due = document.getElementById('dueDateInput');
   const err = document.getElementById('dueDateError');

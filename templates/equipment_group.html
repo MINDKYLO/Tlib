@@ -113,6 +113,11 @@
                             data-bs-target="#borrowModal{{ item.id }}">
                       <i class="bi bi-arrow-right-circle me-1"></i>ยืม
                     </button>
+                    <button class="btn btn-xs btn-outline-info"
+                            data-bs-toggle="modal"
+                            data-bs-target="#reserveModal{{ item.id }}" title="จองล่วงหน้า">
+                      <i class="bi bi-calendar-plus"></i>
+                    </button>
                     {% else %}
                       {% if item.borrower_uid == session.user_id or session.role == 'admin' %}
                       <form method="POST" action="{{ url_for('return_equipment', bid=item.borrow_id) }}"
@@ -152,6 +157,51 @@
     </div>
   </div>
 </div>
+
+<!-- RESERVE MODALS -->
+{% for item in items %}
+{% if item.status == 'available' %}
+<div class="modal fade" id="reserveModal{{ item.id }}" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-calendar-plus me-2 text-info"></i>จองอุปกรณ์ล่วงหน้า</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="POST" action="{{ url_for('reserve', eid=item.id) }}" id="reserveForm{{ item.id }}">
+        <div class="modal-body">
+          <div class="borrow-summary mb-3">
+            <div>
+              <div class="fw-bold">{{ item.name }}</div>
+              <div class="text-muted small">Serial: <span style="font-family:monospace">{{ item.serial_number or '-' }}</span></div>
+            </div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold small">วันที่จะยืม <span class="text-danger">*</span></label>
+            <input type="date" name="start_date" id="resStart{{ item.id }}" class="form-control form-control-sm" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold small">วันที่จะคืน <span class="text-danger">*</span></label>
+            <input type="date" name="end_date" id="resEnd{{ item.id }}" class="form-control form-control-sm" required>
+            <div id="resErr{{ item.id }}" class="text-danger small mt-1" style="display:none;">วันที่คืนต้องมากกว่าวันที่ยืม</div>
+          </div>
+          <div class="mb-2">
+            <label class="form-label fw-semibold small">หมายเหตุ</label>
+            <textarea name="notes" class="form-control form-control-sm" rows="2" placeholder="วัตถุประสงค์การยืม..."></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">ยกเลิก</button>
+          <button type="button" class="btn btn-info text-white" onclick="submitReserveGroup('{{ item.id }}')">
+            <i class="bi bi-calendar-check me-1"></i>ยืนยันการจอง
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endif %}
+{% endfor %}
 
 <!-- BORROW MODALS -->
 {% for item in items %}
@@ -212,6 +262,20 @@
 
 {% block scripts %}
 <script>
+function submitReserveGroup(id) {
+  const start = document.getElementById('resStart' + id);
+  const end   = document.getElementById('resEnd' + id);
+  const err   = document.getElementById('resErr' + id);
+  if (!start.value || !end.value) { return; }
+  if (end.value <= start.value) {
+    end.classList.add('is-invalid');
+    err.style.display = 'block';
+    return;
+  }
+  end.classList.remove('is-invalid');
+  err.style.display = 'none';
+  document.getElementById('reserveForm' + id).submit();
+}
 function submitBorrowGroup(id) {
   const due = document.getElementById('dueDate' + id);
   const err = document.getElementById('dueDateErr' + id);
