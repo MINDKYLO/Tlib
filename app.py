@@ -1429,6 +1429,20 @@ def cancel_borrow(bid):
     return redirect(url_for('dashboard'))
 
 
+# ── API ────────────────────────────────────────────────────────────────────────
+
+@app.route('/api/pending-count')
+@login_required
+def api_pending_count():
+    if session.get('role') != 'admin':
+        return jsonify({'error': 'Forbidden'}), 403
+    conn = get_db()
+    borrows      = db_fetchone(conn, "SELECT COUNT(*) as c FROM borrows WHERE status='pending'")['c']
+    reservations = db_fetchone(conn, "SELECT COUNT(*) as c FROM reservations WHERE status='pending'")['c']
+    conn.close()
+    return jsonify({'borrows': borrows, 'reservations': reservations})
+
+
 # ── SERVE UPLOADS ──────────────────────────────────────────────────────────────
 
 @app.route('/uploads/<path:filename>')

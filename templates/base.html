@@ -45,18 +45,16 @@
        class="nav-link {% if request.endpoint == 'pending_requests' %}active{% endif %}">
       <i class="bi bi-hourglass-split"></i>
       <span>คำขอยืมอุปกรณ์
-        {% if pending_count > 0 %}
-        <span class="badge bg-warning text-dark ms-1">{{ pending_count }}</span>
-        {% endif %}
+        <span id="badgeBorrow" class="badge bg-warning text-dark ms-1"
+              {% if pending_count == 0 %}style="display:none"{% endif %}>{{ pending_count }}</span>
       </span>
     </a>
     <a href="{{ url_for('reservation_list') }}"
        class="nav-link {% if request.endpoint == 'reservation_list' %}active{% endif %}">
       <i class="bi bi-calendar-check"></i>
       <span>การจองอุปกรณ์
-        {% if reserve_pending_count > 0 %}
-        <span class="badge bg-info text-dark ms-1">{{ reserve_pending_count }}</span>
-        {% endif %}
+        <span id="badgeReserve" class="badge bg-info text-dark ms-1"
+              {% if reserve_pending_count == 0 %}style="display:none"{% endif %}>{{ reserve_pending_count }}</span>
       </span>
     </a>
     <a href="{{ url_for('overdue_list') }}"
@@ -160,5 +158,62 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 {% block scripts %}{% endblock %}
+
+{% if session.role == 'admin' %}
+<!-- TOAST CONTAINER -->
+<div class="position-fixed bottom-0 end-0 p-3" style="z-index:9999" id="toastContainer"></div>
+
+<script>
+(function() {
+  var _borrows      = {{ pending_count }};
+  var _reservations = {{ reserve_pending_count }};
+
+  function updateBadge(id, count) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    el.textContent = count;
+    el.style.display = count > 0 ? '' : 'none';
+  }
+
+  function showToast(msg, url, label) {
+    var id = 'toast_' + Date.now();
+    var html = '<div id="' + id + '" class="toast align-items-center text-white bg-primary border-0 shadow" role="alert" data-bs-delay="8000">'
+      + '<div class="d-flex">'
+      + '<div class="toast-body"><i class="bi bi-bell-fill me-2"></i>' + msg + '</div>'
+      + '<a href="' + url + '" class="btn btn-sm btn-light me-2 my-auto">ดูเลย</a>'
+      + '<button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>'
+      + '</div></div>';
+    var container = document.getElementById('toastContainer');
+    container.insertAdjacentHTML('beforeend', html);
+    var el = document.getElementById(id);
+    var t = new bootstrap.Toast(el);
+    t.show();
+    el.addEventListener('hidden.bs.toast', function() { el.remove(); });
+  }
+
+  function poll() {
+    fetch('/api/pending-count')
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (data.borrows > _borrows) {
+          showToast('มีคำขอยืมอุปกรณ์ใหม่ ' + data.borrows + ' รายการ',
+                    '{{ url_for("pending_requests") }}', 'ดูเลย');
+        }
+        if (data.reservations > _reservations) {
+          showToast('มีการจองอุปกรณ์ใหม่ ' + data.reservations + ' รายการ',
+                    '{{ url_for("reservation_list") }}', 'ดูเลย');
+        }
+        _borrows      = data.borrows;
+        _reservations = data.reservations;
+        updateBadge('badgeBorrow',   _borrows);
+        updateBadge('badgeReserve',  _reservations);
+      })
+      .catch(function() {});
+  }
+
+  setInterval(poll, 20000);
+})();
+</script>
+{% endif %}
 </body>
 </html>
