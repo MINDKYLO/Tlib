@@ -167,6 +167,8 @@ document.addEventListener('DOMContentLoaded', function() {
 (function() {
   var _borrows      = {{ pending_count }};
   var _reservations = {{ reserve_pending_count }};
+  var BORROW_URL    = '{{ url_for("pending_requests") }}';
+  var RESERVE_URL   = '{{ url_for("reservation_list") }}';
 
   function updateBadge(id, count) {
     var el = document.getElementById(id);
@@ -175,7 +177,7 @@ document.addEventListener('DOMContentLoaded', function() {
     el.style.display = count > 0 ? '' : 'none';
   }
 
-  function showToast(msg, url, label) {
+  function showToast(msg, url) {
     var id = 'toast_' + Date.now();
     var html = '<div id="' + id + '" class="toast align-items-center text-white bg-primary border-0 shadow" role="alert" data-bs-delay="8000">'
       + '<div class="d-flex">'
@@ -183,11 +185,9 @@ document.addEventListener('DOMContentLoaded', function() {
       + '<a href="' + url + '" class="btn btn-sm btn-light me-2 my-auto">ดูเลย</a>'
       + '<button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>'
       + '</div></div>';
-    var container = document.getElementById('toastContainer');
-    container.insertAdjacentHTML('beforeend', html);
+    document.getElementById('toastContainer').insertAdjacentHTML('beforeend', html);
     var el = document.getElementById(id);
-    var t = new bootstrap.Toast(el);
-    t.show();
+    new bootstrap.Toast(el).show();
     el.addEventListener('hidden.bs.toast', function() { el.remove(); });
   }
 
@@ -195,23 +195,34 @@ document.addEventListener('DOMContentLoaded', function() {
     fetch('/api/pending-count')
       .then(function(r) { return r.json(); })
       .then(function(data) {
-        if (data.borrows > _borrows) {
-          showToast('มีคำขอยืมอุปกรณ์ใหม่ ' + data.borrows + ' รายการ',
-                    '{{ url_for("pending_requests") }}', 'ดูเลย');
+        var path = window.location.pathname;
+        var newBorrows  = data.borrows > _borrows;
+        var newReserves = data.reservations > _reservations;
+
+        if (newBorrows) {
+          if (path === BORROW_URL) {
+            location.reload();   /* อยู่หน้านี้อยู่แล้ว → reload ตารางทันที */
+          } else {
+            showToast('มีคำขอยืมอุปกรณ์ใหม่ ' + data.borrows + ' รายการ', BORROW_URL);
+          }
         }
-        if (data.reservations > _reservations) {
-          showToast('มีการจองอุปกรณ์ใหม่ ' + data.reservations + ' รายการ',
-                    '{{ url_for("reservation_list") }}', 'ดูเลย');
+        if (newReserves) {
+          if (path === RESERVE_URL) {
+            location.reload();
+          } else {
+            showToast('มีการจองอุปกรณ์ใหม่ ' + data.reservations + ' รายการ', RESERVE_URL);
+          }
         }
+
         _borrows      = data.borrows;
         _reservations = data.reservations;
-        updateBadge('badgeBorrow',   _borrows);
-        updateBadge('badgeReserve',  _reservations);
+        updateBadge('badgeBorrow',  _borrows);
+        updateBadge('badgeReserve', _reservations);
       })
       .catch(function() {});
   }
 
-  setInterval(poll, 20000);
+  setInterval(poll, 3000);   /* เช็คทุก 3 วินาที */
 })();
 </script>
 {% endif %}
