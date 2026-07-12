@@ -134,11 +134,9 @@ def init_db():
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )''')
 
-    cur.execute('SELECT COUNT(*) as c FROM categories')
-    if not cur.fetchone()['c']:
-        default_cats = ['Notebook','Monitor','Mobile','Tablet','Camera','Printer','Network','Storage','Peripheral','Other']
-        for cat in default_cats:
-            cur.execute('INSERT INTO categories (name) VALUES (%s)', (cat,))
+    default_cats = ['Notebook','Monitor','Mobile','Tablet','Camera','Printer','Network','Storage','Peripheral','Other']
+    for cat in default_cats:
+        cur.execute('INSERT INTO categories (name) VALUES (%s) ON CONFLICT DO NOTHING', (cat,))
 
     cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS email TEXT")
     cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS phone TEXT")
@@ -339,7 +337,10 @@ def logout():
 @app.route('/')
 @login_required
 def dashboard():
-    auto_activate_reservations()
+    try:
+        auto_activate_reservations()
+    except Exception:
+        pass
     conn      = get_db()
     today     = date.today()
     today_str = today.isoformat()
@@ -1196,7 +1197,10 @@ def reserve(eid):
 @app.route('/admin/reservations')
 @admin_required
 def reservation_list():
-    auto_activate_reservations()
+    try:
+        auto_activate_reservations()
+    except Exception:
+        pass
     conn  = get_db()
     reservations = db_fetchall(conn, '''
         SELECT r.*, e.name as eq_name, e.category, e.serial_number,
@@ -1450,7 +1454,12 @@ def uploaded_file(filename):
     return send_from_directory(UPLOAD_FOLDER, filename)
 
 
-init_db()
+try:
+    init_db()
+except Exception as _e:
+    import traceback
+    traceback.print_exc()
+    print(f'[WARN] init_db failed: {_e}')
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
