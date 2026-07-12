@@ -380,12 +380,15 @@ def dashboard():
         ORDER BY b.borrow_date DESC
     ''', (session['user_id'],))
 
-    my_reservations = db_fetchall(conn, '''
-        SELECT r.*, e.name as eq_name, e.category, e.image
-        FROM reservations r JOIN equipment e ON r.equipment_id=e.id
-        WHERE r.user_id=%s AND r.status IN ('pending','approved')
-        ORDER BY r.start_date ASC
-    ''', (session['user_id'],))
+    try:
+        my_reservations = db_fetchall(conn, '''
+            SELECT r.*, e.name as eq_name, e.category, e.image
+            FROM reservations r JOIN equipment e ON r.equipment_id=e.id
+            WHERE r.user_id=%s AND r.status IN ('pending','approved')
+            ORDER BY r.start_date ASC
+        ''', (session['user_id'],))
+    except Exception:
+        my_reservations = []
 
     conn.close()
     return render_template('dashboard.html',
@@ -1202,17 +1205,20 @@ def reservation_list():
     except Exception:
         pass
     conn  = get_db()
-    reservations = db_fetchall(conn, '''
-        SELECT r.*, e.name as eq_name, e.category, e.serial_number,
-               u.name as user_name, u.department, u.phone as user_phone, u.email as user_email
-        FROM reservations r
-        JOIN equipment e ON r.equipment_id=e.id
-        JOIN users u ON r.user_id=u.id
-        WHERE r.status IN ('pending', 'approved')
-        ORDER BY
-            CASE r.status WHEN 'pending' THEN 1 ELSE 2 END,
-            r.start_date ASC
-    ''')
+    try:
+        reservations = db_fetchall(conn, '''
+            SELECT r.*, e.name as eq_name, e.category, e.serial_number,
+                   u.name as user_name, u.department, u.phone as user_phone, u.email as user_email
+            FROM reservations r
+            JOIN equipment e ON r.equipment_id=e.id
+            JOIN users u ON r.user_id=u.id
+            WHERE r.status IN ('pending', 'approved')
+            ORDER BY
+                CASE r.status WHEN 'pending' THEN 1 ELSE 2 END,
+                r.start_date ASC
+        ''')
+    except Exception:
+        reservations = []
     conn.close()
     return render_template('reservations.html', reservations=reservations, today=date.today().isoformat())
 
@@ -1440,11 +1446,17 @@ def cancel_borrow(bid):
 def api_pending_count():
     if session.get('role') != 'admin':
         return jsonify({'error': 'Forbidden'}), 403
-    conn = get_db()
-    borrows      = db_fetchone(conn, "SELECT COUNT(*) as c FROM borrows WHERE status='pending'")['c']
-    reservations = db_fetchone(conn, "SELECT COUNT(*) as c FROM reservations WHERE status='pending'")['c']
-    conn.close()
-    return jsonify({'borrows': borrows, 'reservations': reservations})
+    try:
+        conn = get_db()
+        borrows      = db_fetchone(conn, "SELECT COUNT(*) as c FROM borrows WHERE status='pending'")['c']
+        try:
+            reservations = db_fetchone(conn, "SELECT COUNT(*) as c FROM reservations WHERE status='pending'")['c']
+        except Exception:
+            reservations = 0
+        conn.close()
+        return jsonify({'borrows': borrows, 'reservations': reservations})
+    except Exception as e:
+        return jsonify({'borrows': 0, 'reservations': 0, 'error': str(e)})
 
 
 # ── SERVE UPLOADS ──────────────────────────────────────────────────────────────
@@ -1454,12 +1466,35 @@ def uploaded_file(filename):
     return send_from_directory(UPLOAD_FOLDER, filename)
 
 
+_init_error = None
 try:
     init_db()
 except Exception as _e:
     import traceback
+    _init_error = str(_e)
     traceback.print_exc()
     print(f'[WARN] init_db failed: {_e}')
+
+
+@app.route('/ping')
+def ping():
+    """Diagnostic: check DB connection and schema."""
+    info = {
+        'init_error': _init_error,
+        'db_url_set': bool(os.environ.get('DATABASE_URL')),
+        'tables': [],
+        'db': 'unknown',
+    }
+    try:
+        conn = get_db()
+        cur  = conn.cursor()
+        cur.execute("SELECT table_name FROM information_schema.tables WHERE table_schema='public' ORDER BY table_name")
+        info['tables'] = [r['table_name'] for r in cur.fetchall()]
+        info['db'] = 'ok'
+        conn.close()
+    except Exception as e:
+        info['db'] = f'error: {e}'
+    return jsonify(info)
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
