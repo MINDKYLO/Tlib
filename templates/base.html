@@ -218,8 +218,7 @@ document.addEventListener('DOMContentLoaded', function() {
           if (payload.new && payload.new.status === 'pending') {
             _borrows++;
             updateBadge('badgeBorrow', _borrows);
-            if (window.location.pathname === BORROW_URL) { location.reload(); }
-            else { showToast('มีคำขอยืมอุปกรณ์ใหม่ ' + _borrows + ' รายการ', BORROW_URL); }
+            showToast('มีคำขอยืมอุปกรณ์ใหม่ ' + _borrows + ' รายการ', BORROW_URL);
           }
         })
     .on('postgres_changes',
@@ -228,8 +227,7 @@ document.addEventListener('DOMContentLoaded', function() {
           if (payload.new && payload.new.status === 'pending') {
             _reservations++;
             updateBadge('badgeReserve', _reservations);
-            if (window.location.pathname === RESERVE_URL) { location.reload(); }
-            else { showToast('มีการจองอุปกรณ์ใหม่ ' + _reservations + ' รายการ', RESERVE_URL); }
+            showToast('มีการจองอุปกรณ์ใหม่ ' + _reservations + ' รายการ', RESERVE_URL);
           }
         })
     .subscribe();
