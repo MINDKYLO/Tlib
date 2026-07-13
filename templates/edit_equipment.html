@@ -43,6 +43,13 @@
               <label class="form-label fw-semibold">รุ่น (Model)</label>
               <input type="text" name="model" class="form-control" value="{{ eq.model or '' }}">
             </div>
+            <div class="col-md-6">
+              <label class="form-label fw-semibold">สถานะ</label>
+              <select name="status" class="form-select">
+                <option value="available" {% if eq.status == 'available' %}selected{% endif %}>พร้อมให้ยืม</option>
+                <option value="broken"    {% if eq.status == 'broken'    %}selected{% endif %}>เสีย</option>
+              </select>
+            </div>
             <div class="col-12">
               <label class="form-label fw-semibold">รายละเอียด</label>
               <textarea name="description" class="form-control" rows="2">{{ eq.description or '' }}</textarea>

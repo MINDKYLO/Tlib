@@ -296,6 +296,7 @@ body {
 }
 .status-available { background: #dcfce7; color: #15803d; }
 .status-borrowed  { background: #fef3c7; color: #92400e; }
+.status-broken    { background: #fee2e2; color: #991b1b; }
 
 /* ── DETAIL GRID ───────────────────────────────────────────────────────────── */
 .detail-grid { display: flex; flex-direction: column; gap: 0; }

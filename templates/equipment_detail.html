@@ -24,9 +24,9 @@
 
     <div class="card shadow-sm mb-3">
       <div class="card-body">
-        <div class="status-banner {% if eq.status == 'available' %}status-available{% else %}status-borrowed{% endif %} mb-3">
-          <i class="bi bi-{% if eq.status == 'available' %}check-circle-fill{% else %}arrow-right-circle-fill{% endif %} me-2"></i>
-          {% if eq.status == 'available' %}พร้อมให้ยืม{% else %}กำลังถูกยืม{% endif %}
+        <div class="status-banner {% if eq.status == 'available' %}status-available{% elif eq.status == 'broken' %}status-broken{% else %}status-borrowed{% endif %} mb-3">
+          <i class="bi bi-{% if eq.status == 'available' %}check-circle-fill{% elif eq.status == 'broken' %}tools{% else %}arrow-right-circle-fill{% endif %} me-2"></i>
+          {% if eq.status == 'available' %}พร้อมให้ยืม{% elif eq.status == 'broken' %}อุปกรณ์เสีย — ไม่สามารถยืมได้{% else %}กำลังถูกยืม{% endif %}
         </div>
 
         <div class="detail-grid">
@@ -116,10 +116,12 @@
             </button>
             {% endif %}
           {% endif %}
+          {% if eq.status != 'broken' %}
           <button class="btn btn-outline-info"
                   data-bs-toggle="modal" data-bs-target="#reserveModal">
             <i class="bi bi-calendar-plus me-1"></i>จองล่วงหน้า
           </button>
+          {% endif %}
           {% if session.role == 'admin' %}
           <a href="{{ url_for('edit_equipment', eid=eq.id) }}" class="btn btn-outline-secondary">
             <i class="bi bi-pencil me-1"></i>แก้ไข

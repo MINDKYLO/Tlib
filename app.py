@@ -431,13 +431,16 @@ def equipment_list():
         having = "HAVING SUM(CASE WHEN status='available' THEN 1 ELSE 0 END) > 0"
     elif status == 'borrowed':
         having = "HAVING SUM(CASE WHEN status='borrowed' THEN 1 ELSE 0 END) > 0"
+    elif status == 'broken':
+        having = "HAVING SUM(CASE WHEN status='broken' THEN 1 ELSE 0 END) > 0"
 
     query = f'''
         SELECT name, category,
                MAX(image) AS image,
                COUNT(*) AS total_count,
                SUM(CASE WHEN status='available' THEN 1 ELSE 0 END) AS available_count,
-               SUM(CASE WHEN status='borrowed'  THEN 1 ELSE 0 END) AS borrowed_count
+               SUM(CASE WHEN status='borrowed'  THEN 1 ELSE 0 END) AS borrowed_count,
+               SUM(CASE WHEN status='broken'    THEN 1 ELSE 0 END) AS broken_count
         FROM equipment
         WHERE {inner_where}
         GROUP BY name, category
@@ -613,10 +616,13 @@ def edit_equipment(eid):
         name   = request.form['name'];     category = request.form['category']
         serial = request.form['serial_number']; brand = request.form['brand']
         model  = request.form['model'];    desc     = request.form['description']
+        status = request.form.get('status', 'available')
+        if status not in ('available', 'broken'):
+            status = 'available'
         try:
             db_execute(conn, '''UPDATE equipment SET name=%s, category=%s, serial_number=%s,
-                                brand=%s, model=%s, description=%s WHERE id=%s''',
-                       (name, category, serial, brand, model, desc, eid))
+                                brand=%s, model=%s, description=%s, status=%s WHERE id=%s''',
+                       (name, category, serial, brand, model, desc, status, eid))
             f = request.files.get('image')
             if f and f.filename and allowed_file(f.filename):
                 ext  = secure_filename(f.filename).rsplit('.', 1)[1].lower()
