@@ -104,10 +104,17 @@
 
         <div class="d-flex gap-2 mt-3 flex-wrap">
           {% if eq.status == 'available' %}
-          <button class="btn btn-primary flex-grow-1"
-                  data-bs-toggle="modal" data-bs-target="#borrowDetailModal">
-            <i class="bi bi-arrow-right-circle me-1"></i>ยืมอุปกรณ์
-          </button>
+            {% if session.role != 'admin' and user_active_count >= 2 %}
+            <button class="btn btn-warning flex-grow-1"
+                    data-bs-toggle="modal" data-bs-target="#specialBorrowModal">
+              <i class="bi bi-star me-1"></i>ขอยืมพิเศษ
+            </button>
+            {% else %}
+            <button class="btn btn-primary flex-grow-1"
+                    data-bs-toggle="modal" data-bs-target="#borrowDetailModal">
+              <i class="bi bi-arrow-right-circle me-1"></i>ยืมอุปกรณ์
+            </button>
+            {% endif %}
           {% endif %}
           <button class="btn btn-outline-info"
                   data-bs-toggle="modal" data-bs-target="#reserveModal">
@@ -162,6 +169,49 @@
           <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">ยกเลิก</button>
           <button type="button" class="btn btn-primary" onclick="submitBorrow()">
             <i class="bi bi-check-lg me-1"></i>ยืนยันการยืม
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<!-- SPECIAL BORROW MODAL -->
+{% if eq.status == 'available' and session.role != 'admin' and user_active_count >= 2 %}
+<div class="modal fade" id="specialBorrowModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header bg-warning bg-opacity-10">
+        <h5 class="modal-title"><i class="bi bi-star me-2 text-warning"></i>ขอยืมอุปกรณ์พิเศษ</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="POST" action="{{ url_for('borrow', eid=eq.id) }}" id="specialBorrowForm">
+        <input type="hidden" name="is_special" value="1">
+        <div class="modal-body">
+          <div class="alert alert-warning py-2 small mb-3">
+            <i class="bi bi-info-circle me-1"></i>คุณมีอุปกรณ์ที่ยืมอยู่แล้ว <strong>{{ user_active_count }} ชิ้น</strong> (เกินโควต้าปกติ 2 ชิ้น) — Admin จะพิจารณาเป็นพิเศษ
+          </div>
+          <div class="borrow-summary mb-3">
+            <div>
+              <div class="fw-bold">{{ eq.name }}</div>
+              <div class="text-muted small">{{ eq.brand }} {{ eq.model }} | Serial: {{ eq.serial_number }}</div>
+            </div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold small">วันที่ต้องคืน <span class="text-danger">*</span></label>
+            <input type="date" name="due_date" id="specialDueDateInput" class="form-control form-control-sm" required>
+          </div>
+          <div class="mb-2">
+            <label class="form-label fw-semibold small">เหตุผลที่ต้องการยืมเพิ่ม <span class="text-danger">*</span></label>
+            <textarea name="notes" class="form-control form-control-sm" rows="3"
+                      placeholder="ระบุเหตุผลที่จำเป็นต้องใช้อุปกรณ์เพิ่มเติม..." required></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">ยกเลิก</button>
+          <button type="submit" class="btn btn-warning">
+            <i class="bi bi-send me-1"></i>ส่งคำขอพิเศษ
           </button>
         </div>
       </form>

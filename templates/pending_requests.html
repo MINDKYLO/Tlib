@@ -43,6 +43,7 @@
             <td>
               <a href="{{ url_for('equipment_detail', eid=r.equipment_id) }}"
                  class="text-decoration-none fw-semibold small">{{ r.eq_name }}</a>
+              {% if r.is_special %}<span class="badge bg-warning text-dark ms-1">พิเศษ</span>{% endif %}
               <div class="text-muted" style="font-size:0.7rem">
                 {{ r.category }}{% if r.serial_number %} | {{ r.serial_number }}{% endif %}
               </div>

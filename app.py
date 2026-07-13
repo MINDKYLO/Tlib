@@ -148,6 +148,7 @@ def init_db():
     cur.execute("ALTER TABLE equipment ADD COLUMN IF NOT EXISTS custom_fields JSONB")
     cur.execute("ALTER TABLE borrows ADD COLUMN IF NOT EXISTS notified_before BOOLEAN DEFAULT FALSE")
     cur.execute("ALTER TABLE borrows ADD COLUMN IF NOT EXISTS notified_due BOOLEAN DEFAULT FALSE")
+    cur.execute("ALTER TABLE borrows ADD COLUMN IF NOT EXISTS is_special BOOLEAN DEFAULT FALSE")
 
     cur.execute('''CREATE TABLE IF NOT EXISTS reservations (
         id           SERIAL PRIMARY KEY,
@@ -590,9 +591,14 @@ def equipment_detail(eid):
         FROM borrows b JOIN users u ON b.user_id=u.id
         WHERE b.equipment_id=%s AND b.status IN ('borrowed', 'pending')
     ''', (eid,))
+    user_active_count = 0
+    if 'user_id' in session and session.get('role') != 'admin':
+        row = db_fetchone(conn, "SELECT COUNT(*) as c FROM borrows WHERE user_id=%s AND status IN ('pending','borrowed')", (session['user_id'],))
+        user_active_count = row['c'] if row else 0
     conn.close()
     return render_template('equipment_detail.html',
-                           eq=eq, history=history, current_borrow=current_borrow)
+                           eq=eq, history=history, current_borrow=current_borrow,
+                           user_active_count=user_active_count)
 
 
 @app.route('/equipment/<int:eid>/edit', methods=['GET', 'POST'])
@@ -696,10 +702,11 @@ def borrow(eid):
         flash('อุปกรณ์ไม่พร้อมให้ยืม', 'danger')
         conn.close()
         return redirect(url_for('equipment_list'))
+    is_special = request.form.get('is_special') == '1'
     if session.get('role') != 'admin':
         active = db_fetchone(conn, "SELECT COUNT(*) as c FROM borrows WHERE user_id=%s AND status IN ('pending','borrowed')", (session['user_id'],))
-        if active and active['c'] >= 3:
-            flash('ไม่สามารถยืมได้ เนื่องจากคุณมีอุปกรณ์ที่ยืม/รออนุมัติอยู่แล้ว 3 ชิ้น (สูงสุด 3 ชิ้น)', 'danger')
+        if active and active['c'] >= 2 and not is_special:
+            flash('คุณมีอุปกรณ์ที่ยืม/รออนุมัติครบ 2 ชิ้นแล้ว หากต้องการยืมเพิ่มกรุณาใช้ "ขอยืมพิเศษ"', 'warning')
             conn.close()
             return redirect(url_for('equipment_detail', eid=eid))
     due_date = request.form.get('due_date') or None
@@ -707,8 +714,8 @@ def borrow(eid):
         conn.close()
         return redirect(url_for('equipment_detail', eid=eid))
     notes    = request.form.get('notes', '')
-    db_execute(conn, "INSERT INTO borrows (equipment_id, user_id, due_date, notes, status) VALUES (%s,%s,%s,%s,'pending')",
-               (eid, session['user_id'], due_date, notes))
+    db_execute(conn, "INSERT INTO borrows (equipment_id, user_id, due_date, notes, status, is_special) VALUES (%s,%s,%s,%s,'pending',%s)",
+               (eid, session['user_id'], due_date, notes, is_special))
     db_execute(conn, "UPDATE equipment SET status='borrowed' WHERE id=%s", (eid,))
     conn.commit()
     conn.close()
