@@ -72,7 +72,7 @@
             </thead>
             <tbody>
               {% for item in items %}
-              <tr class="{% if item.status == 'borrowed' %}table-warning{% endif %}">
+              <tr class="{% if item.status == 'borrowed' %}table-warning{% elif item.status == 'broken' %}table-danger{% endif %}">
                 <td class="text-muted small ps-3">{{ loop.index }}</td>
                 <td>
                   <span class="fw-semibold" style="font-family:monospace">
@@ -93,8 +93,19 @@
                 </td>
                 {% endfor %}
                 <td>
-                  {% if item.status == 'available' %}
+                  {% if session.role == 'admin' and item.status != 'borrowed' %}
+                  <form method="POST" action="{{ url_for('set_equipment_status', eid=item.id) }}" class="d-inline">
+                    <select name="status" class="form-select form-select-sm py-0 px-1"
+                            style="font-size:0.75rem;width:auto;display:inline-block;min-width:90px"
+                            onchange="this.form.submit()">
+                      <option value="available" {% if item.status == 'available' %}selected{% endif %}>ว่าง</option>
+                      <option value="broken"    {% if item.status == 'broken'    %}selected{% endif %}>เสีย</option>
+                    </select>
+                  </form>
+                  {% elif item.status == 'available' %}
                   <span class="badge badge-available">ว่าง</span>
+                  {% elif item.status == 'broken' %}
+                  <span class="badge bg-danger">เสีย</span>
                   {% else %}
                   <span class="badge badge-borrowed">ถูกยืม</span>
                   {% endif %}

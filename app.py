@@ -672,6 +672,25 @@ def duplicate_equipment(eid):
     return redirect(url_for('equipment_group', name=eq['name'], category=eq['category']))
 
 
+@app.route('/equipment/<int:eid>/set-status', methods=['POST'])
+@admin_required
+def set_equipment_status(eid):
+    new_status = request.form.get('status')
+    if new_status not in ('available', 'broken'):
+        flash('สถานะไม่ถูกต้อง', 'danger')
+        return redirect(request.referrer or url_for('equipment_list'))
+    conn = get_db()
+    eq = db_fetchone(conn, 'SELECT * FROM equipment WHERE id=%s', (eid,))
+    if not eq or eq['status'] == 'borrowed':
+        flash('ไม่สามารถเปลี่ยนสถานะได้ขณะถูกยืมอยู่', 'warning')
+        conn.close()
+        return redirect(request.referrer or url_for('equipment_list'))
+    db_execute(conn, 'UPDATE equipment SET status=%s WHERE id=%s', (new_status, eid))
+    conn.commit()
+    conn.close()
+    return redirect(request.referrer or url_for('equipment_list'))
+
+
 @app.route('/equipment/<int:eid>/delete', methods=['POST'])
 @admin_required
 def delete_equipment(eid):
