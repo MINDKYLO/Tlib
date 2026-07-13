@@ -129,7 +129,7 @@
                             data-bs-target="#reserveModal{{ item.id }}" title="จองล่วงหน้า">
                       <i class="bi bi-calendar-plus"></i>
                     </button>
-                    {% else %}
+                    {% elif item.status == 'borrowed' %}
                       {% if item.borrower_uid == session.user_id or session.role == 'admin' %}
                       <form method="POST" action="{{ url_for('return_equipment', bid=item.borrow_id) }}"
                             onsubmit="return confirm('ยืนยันการคืน {{ item.serial_number or item.name }}?')">
