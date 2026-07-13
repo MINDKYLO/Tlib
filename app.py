@@ -696,6 +696,12 @@ def borrow(eid):
         flash('อุปกรณ์ไม่พร้อมให้ยืม', 'danger')
         conn.close()
         return redirect(url_for('equipment_list'))
+    if session.get('role') != 'admin':
+        active = db_fetchone(conn, "SELECT COUNT(*) as c FROM borrows WHERE user_id=%s AND status IN ('pending','borrowed')", (session['user_id'],))
+        if active and active['c'] >= 3:
+            flash('ไม่สามารถยืมได้ เนื่องจากคุณมีอุปกรณ์ที่ยืม/รออนุมัติอยู่แล้ว 3 ชิ้น (สูงสุด 3 ชิ้น)', 'danger')
+            conn.close()
+            return redirect(url_for('equipment_detail', eid=eid))
     due_date = request.form.get('due_date') or None
     if not due_date:
         conn.close()
