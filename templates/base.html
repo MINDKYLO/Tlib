@@ -163,6 +163,10 @@ document.addEventListener('DOMContentLoaded', function() {
 <!-- TOAST CONTAINER -->
 <div class="position-fixed bottom-0 end-0 p-3" style="z-index:9999" id="toastContainer"></div>
 
+{% if supabase_url and supabase_anon_key %}
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+{% endif %}
+
 <script>
 (function() {
   var _borrows      = {{ pending_count }};
@@ -191,6 +195,49 @@ document.addEventListener('DOMContentLoaded', function() {
     el.addEventListener('hidden.bs.toast', function() { el.remove(); });
   }
 
+  function syncCounts() {
+    fetch('/api/pending-count')
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        _borrows      = data.borrows || 0;
+        _reservations = data.reservations || 0;
+        updateBadge('badgeBorrow',  _borrows);
+        updateBadge('badgeReserve', _reservations);
+      })
+      .catch(function() {});
+  }
+
+{% if supabase_url and supabase_anon_key %}
+  /* ── Supabase Realtime — instant notification ── */
+  var sb = window.supabase.createClient('{{ supabase_url }}', '{{ supabase_anon_key }}');
+
+  sb.channel('admin-notify')
+    .on('postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'borrows' },
+        function(payload) {
+          if (payload.new && payload.new.status === 'pending') {
+            _borrows++;
+            updateBadge('badgeBorrow', _borrows);
+            if (window.location.pathname === BORROW_URL) { location.reload(); }
+            else { showToast('มีคำขอยืมอุปกรณ์ใหม่ ' + _borrows + ' รายการ', BORROW_URL); }
+          }
+        })
+    .on('postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'reservations' },
+        function(payload) {
+          if (payload.new && payload.new.status === 'pending') {
+            _reservations++;
+            updateBadge('badgeReserve', _reservations);
+            if (window.location.pathname === RESERVE_URL) { location.reload(); }
+            else { showToast('มีการจองอุปกรณ์ใหม่ ' + _reservations + ' รายการ', RESERVE_URL); }
+          }
+        })
+    .subscribe();
+
+  setInterval(syncCounts, 30000); /* sync badge ทุก 30 วินาที */
+
+{% else %}
+  /* ── Fallback polling ทุก 3 วินาที ── */
   function poll() {
     fetch('/api/pending-count')
       .then(function(r) { return r.json(); })
@@ -198,22 +245,14 @@ document.addEventListener('DOMContentLoaded', function() {
         var path = window.location.pathname;
         var newBorrows  = data.borrows > _borrows;
         var newReserves = data.reservations > _reservations;
-
         if (newBorrows) {
-          if (path === BORROW_URL) {
-            location.reload();   /* อยู่หน้านี้อยู่แล้ว → reload ตารางทันที */
-          } else {
-            showToast('มีคำขอยืมอุปกรณ์ใหม่ ' + data.borrows + ' รายการ', BORROW_URL);
-          }
+          if (path === BORROW_URL) { location.reload(); }
+          else { showToast('มีคำขอยืมอุปกรณ์ใหม่ ' + data.borrows + ' รายการ', BORROW_URL); }
         }
         if (newReserves) {
-          if (path === RESERVE_URL) {
-            location.reload();
-          } else {
-            showToast('มีการจองอุปกรณ์ใหม่ ' + data.reservations + ' รายการ', RESERVE_URL);
-          }
+          if (path === RESERVE_URL) { location.reload(); }
+          else { showToast('มีการจองอุปกรณ์ใหม่ ' + data.reservations + ' รายการ', RESERVE_URL); }
         }
-
         _borrows      = data.borrows;
         _reservations = data.reservations;
         updateBadge('badgeBorrow',  _borrows);
@@ -221,8 +260,8 @@ document.addEventListener('DOMContentLoaded', function() {
       })
       .catch(function() {});
   }
-
-  setInterval(poll, 3000);   /* เช็คทุก 3 วินาที */
+  setInterval(poll, 3000);
+{% endif %}
 })();
 </script>
 {% endif %}

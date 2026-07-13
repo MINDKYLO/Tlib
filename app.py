@@ -34,6 +34,9 @@ DATABASE_URL = os.environ.get('DATABASE_URL', 'postgresql://localhost/itborrow')
 if DATABASE_URL.startswith('postgres://'):
     DATABASE_URL = DATABASE_URL.replace('postgres://', 'postgresql://', 1)
 
+SUPABASE_URL      = os.environ.get('SUPABASE_URL', '')
+SUPABASE_ANON_KEY = os.environ.get('SUPABASE_ANON_KEY', '')
+
 
 # ── DB HELPERS ─────────────────────────────────────────────────────────────────
 
@@ -196,16 +199,21 @@ def admin_required(f):
 
 @app.context_processor
 def inject_pending_count():
+    base = {'pending_count': 0, 'reserve_pending_count': 0,
+            'supabase_url': SUPABASE_URL, 'supabase_anon_key': SUPABASE_ANON_KEY}
     if 'user_id' in session and session.get('role') == 'admin':
         try:
             conn = get_db()
             borrow_count  = db_fetchone(conn, "SELECT COUNT(*) as c FROM borrows WHERE status='pending'")['c']
-            reserve_count = db_fetchone(conn, "SELECT COUNT(*) as c FROM reservations WHERE status='pending'")['c']
+            try:
+                reserve_count = db_fetchone(conn, "SELECT COUNT(*) as c FROM reservations WHERE status='pending'")['c']
+            except Exception:
+                reserve_count = 0
             conn.close()
-            return {'pending_count': borrow_count, 'reserve_pending_count': reserve_count}
+            base.update({'pending_count': borrow_count, 'reserve_pending_count': reserve_count})
         except Exception:
-            return {'pending_count': 0, 'reserve_pending_count': 0}
-    return {'pending_count': 0, 'reserve_pending_count': 0}
+            pass
+    return base
 
 
 # ── EMAIL HELPERS ──────────────────────────────────────────────────────────────
