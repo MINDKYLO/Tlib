@@ -181,12 +181,15 @@ document.addEventListener('DOMContentLoaded', function() {
     el.style.display = count > 0 ? '' : 'none';
   }
 
-  function showToast(msg, url) {
+  function showToast(msg, url, reload) {
     var id = 'toast_' + Date.now();
+    var btn = reload
+      ? '<button onclick="location.reload()" class="btn btn-sm btn-light me-2 my-auto">โหลดใหม่</button>'
+      : '<a href="' + url + '" class="btn btn-sm btn-light me-2 my-auto">ดูเลย</a>';
     var html = '<div id="' + id + '" class="toast align-items-center text-white bg-primary border-0 shadow" role="alert" data-bs-delay="8000">'
       + '<div class="d-flex">'
       + '<div class="toast-body"><i class="bi bi-bell-fill me-2"></i>' + msg + '</div>'
-      + '<a href="' + url + '" class="btn btn-sm btn-light me-2 my-auto">ดูเลย</a>'
+      + btn
       + '<button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>'
       + '</div></div>';
     document.getElementById('toastContainer').insertAdjacentHTML('beforeend', html);
@@ -218,7 +221,8 @@ document.addEventListener('DOMContentLoaded', function() {
           if (payload.new && payload.new.status === 'pending') {
             _borrows++;
             updateBadge('badgeBorrow', _borrows);
-            showToast('มีคำขอยืมอุปกรณ์ใหม่ ' + _borrows + ' รายการ', BORROW_URL);
+            var onPage = window.location.pathname === BORROW_URL;
+            showToast('มีคำขอยืมอุปกรณ์ใหม่ ' + _borrows + ' รายการ', BORROW_URL, onPage);
           }
         })
     .on('postgres_changes',
@@ -227,7 +231,8 @@ document.addEventListener('DOMContentLoaded', function() {
           if (payload.new && payload.new.status === 'pending') {
             _reservations++;
             updateBadge('badgeReserve', _reservations);
-            showToast('มีการจองอุปกรณ์ใหม่ ' + _reservations + ' รายการ', RESERVE_URL);
+            var onPage = window.location.pathname === RESERVE_URL;
+            showToast('มีการจองอุปกรณ์ใหม่ ' + _reservations + ' รายการ', RESERVE_URL, onPage);
           }
         })
     .subscribe();
